@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Wallet, ArrowRight, Lock, Mail, Activity, User, Fingerprint } from 'lucide-react';
+import { Wallet, ArrowRight, Lock, Mail, Activity, User, Fingerprint, Check } from 'lucide-react';
 import { useAuth } from '../store/ProviderAuth.jsx';
 
 const GoogleIcon = ({ className }) => (
@@ -32,13 +32,14 @@ export default function Login() {
 
   const [name, setName] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(true);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setErro('');
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, rememberDevice);
     } catch (err) {
       setErro(err?.message || 'E-mail ou senha inválidos.');
     } finally {
@@ -59,7 +60,7 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      await register(email, password, name);
+      await register(email, password, name, rememberDevice);
     } catch (err) {
       setErro(err?.message || 'Cadastro falhou.');
     } finally {
@@ -162,7 +163,15 @@ export default function Login() {
                     </div>
                     <div className="flex items-center justify-between">
                       <label className="flex items-center gap-2 cursor-pointer group">
-                        <div className="w-3.5 h-3.5 rounded border border-slate-700 bg-slate-950 group-hover:border-emerald-500/50 transition-colors flex items-center justify-center" />
+                        <input
+                          type="checkbox"
+                          checked={rememberDevice}
+                          onChange={(e) => setRememberDevice(e.target.checked)}
+                          className="sr-only peer"
+                        />
+                        <div className="w-3.5 h-3.5 rounded border border-slate-700 bg-slate-950 group-hover:border-emerald-500/50 peer-checked:bg-emerald-500 peer-checked:border-emerald-500 transition-colors flex items-center justify-center">
+                          {rememberDevice && <Check className="w-2.5 h-2.5 text-white" />}
+                        </div>
                         <span className="text-[10px] text-slate-500 font-bold group-hover:text-slate-400 transition-colors">Lembrar dispositivo</span>
                       </label>
                     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ProviderApp, useApp, ProviderAuth, useAuth } from '../store';
+import { ProviderApp, useApp, useAuth } from '../store';
 import { ProviderDados, useDados } from '../store/ProviderDados';
 import Login from './Login.jsx';
 import Termos from './Termos.jsx';
@@ -382,13 +382,11 @@ function AppGate() {
 
 export default function App() {
   return (
-    <ProviderAuth>
-      <Routes>
-        <Route path="/termos" element={<Termos />} />
-        <Route path="/privacidade" element={<Privacidade />} />
-        <Route path="/" element={<AppGate />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </ProviderAuth>
+    <Routes>
+      <Route path="/termos" element={<Termos />} />
+      <Route path="/privacidade" element={<Privacidade />} />
+      <Route path="/" element={<AppGate />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { CONTEXTOS, METODOS_PAGAMENTO } from '../../lib/constantes';
-import { Input, InputMoeda, Select } from '../../componentes/ui';
+import { Input, InputData, InputMoeda, Select } from '../../componentes/ui';
 
 /** Opções de contraparte em função do contexto: só neste contexto ou transferência para o outro */
 function opcoesContraparte(contexto) {
@@ -99,9 +99,8 @@ export function FormularioLancamento({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Input
+        <InputData
           label="Data"
-          type="date"
           required
           value={formulario.date ?? ''}
           onChange={(e) => aoAlterarFormulario({ ...formulario, date: e.target.value })}

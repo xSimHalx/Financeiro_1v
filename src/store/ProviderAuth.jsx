@@ -32,14 +32,14 @@ export function ProviderAuth({ children }) {
     checkAuth();
   }, []);
 
-  const login = async (email, password) => {
-    const u = await auth.login(email, password);
+  const login = async (email, password, remember = true) => {
+    const u = await auth.login(email, password, remember);
     setTokenState(auth.getToken());
     setUser(u);
   };
 
-  const register = async (email, password, nome) => {
-    const u = await auth.register(email, password, nome);
+  const register = async (email, password, nome, remember = true) => {
+    const u = await auth.register(email, password, nome, remember);
     setTokenState(auth.getToken());
     setUser(u);
   };

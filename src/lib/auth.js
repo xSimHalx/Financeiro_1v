@@ -3,16 +3,20 @@ const TOKEN_KEY = 'vertexads_token';
 
 export function getToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token) {
+export function setToken(token, remember = true) {
   if (typeof window === 'undefined') return;
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+  if (token) {
+    if (remember) localStorage.setItem(TOKEN_KEY, token);
+    else sessionStorage.setItem(TOKEN_KEY, token);
+  }
 }
 
-export async function login(email, password) {
+export async function login(email, password, remember = true) {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -23,11 +27,11 @@ export async function login(email, password) {
     const msg = data && typeof data.error === 'string' ? data.error : `Login falhou (${res.status})`;
     throw new Error(msg);
   }
-  setToken(data.token);
+  setToken(data.token, remember);
   return data.user;
 }
 
-export async function register(email, password, nome) {
+export async function register(email, password, nome, remember = true) {
   const res = await fetch(`${API_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -38,7 +42,7 @@ export async function register(email, password, nome) {
     const msg = data && typeof data.error === 'string' ? data.error : 'Cadastro falhou';
     throw new Error(msg);
   }
-  setToken(data.token);
+  setToken(data.token, remember);
   return data.user;
 }
 
@@ -55,5 +59,6 @@ export async function me() {
 }
 
 export function logout() {
-  setToken(null);
+  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
