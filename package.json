@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "set PATH=%USERPROFILE%\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\bin;%USERPROFILE%\\.cargo\\bin;%PATH% && tauri build"
+    "tauri:build": "tauri build",
+    "tauri:build:win": "set PATH=%USERPROFILE%\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\bin;%USERPROFILE%\\.cargo\\bin;%PATH% && tauri build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
