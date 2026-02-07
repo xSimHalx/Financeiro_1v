@@ -1,0 +1,9 @@
+/* Variáveis CSS do projeto (tema escuro) */
+:root {
+  --cor-fundo: 2 6 23;       /* slate-950 */
+  --cor-superficie: 15 23 42; /* slate-900 */
+  --cor-borda: 30 41 59;     /* slate-800 */
+  --cor-primaria: 16 185 129; /* emerald-500 */
+  --cor-erro: 239 68 68;     /* red-500 */
+  --cor-aviso: 245 158 11;   /* amber-500 */
+}

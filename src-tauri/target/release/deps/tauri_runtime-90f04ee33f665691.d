@@ -1,0 +1,11 @@
+Z:\Financeiro 2V\src-tauri\target\release\deps\tauri_runtime-90f04ee33f665691.d: C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\lib.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\dpi.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\monitor.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\webview.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\window.rs
+
+Z:\Financeiro 2V\src-tauri\target\release\deps\libtauri_runtime-90f04ee33f665691.rlib: C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\lib.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\dpi.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\monitor.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\webview.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\window.rs
+
+Z:\Financeiro 2V\src-tauri\target\release\deps\libtauri_runtime-90f04ee33f665691.rmeta: C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\lib.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\dpi.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\monitor.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\webview.rs C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\window.rs
+
+C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\lib.rs:
+C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\dpi.rs:
+C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\monitor.rs:
+C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\webview.rs:
+C:\Users\SimHa\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-runtime-2.10.0\src\window.rs:

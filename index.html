@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VertexAds - Financeiro</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- #region agent log -->
+    <script>
+      (function(){
+        var endpoint = 'http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca';
+        function send(payload) {
+          fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).catch(function(){});
+        }
+        window.onerror = function(msg, source, lineno, colno, error) {
+          send({ location: (source || '') + ':' + lineno + ':' + colno, message: msg, data: { source: source, lineno: lineno, colno: colno, stack: error && error.stack }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H1-H2-H5' });
+        };
+        window.onunhandledrejection = function(e) {
+          var reason = e.reason; var msg = typeof reason === 'object' && reason !== null ? (reason.message || JSON.stringify(reason)) : String(reason);
+          send({ location: 'unhandledrejection', message: msg, data: { reason: reason, stack: reason && reason.stack }, timestamp: Date.now(), sessionId: 'debug-session', hypothesisId: 'H3' });
+        };
+      })();
+    </script>
+    <!-- #endregion -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
