@@ -1,1 +1,3 @@
 node_modules
+server/storage/
+server/.migrated-to-sqlite

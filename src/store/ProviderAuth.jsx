@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import * as auth from '../lib/auth.js';
+import * as db from '../lib/db.js';
 
 const ContextoAuth = createContext(null);
 
@@ -45,6 +46,7 @@ export function ProviderAuth({ children }) {
   };
 
   const logout = () => {
+    db.clearUserData().catch(() => {});
     auth.logout();
     setTokenState(null);
     setUser(null);

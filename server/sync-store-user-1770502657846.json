@@ -1,0 +1,51 @@
+{
+  "transacoes": [
+    {
+      "date": "2026-02-07",
+      "value": 10000,
+      "description": "as",
+      "client": "a",
+      "type": "entrada",
+      "contexto": "empresa",
+      "contraparte": null,
+      "category": "Serviços",
+      "account": "Nubank",
+      "metodoPagamento": "pix",
+      "status": "pago",
+      "id": "tx_1770502940319_ei5hnlg",
+      "deleted": false,
+      "updatedAt": "2026-02-07T22:23:09.926Z"
+    }
+  ],
+  "recorrentes": [],
+  "config": {
+    "categorias": [
+      "Serviços",
+      "Infraestrutura",
+      "Assinaturas",
+      "Geral",
+      "Vendas",
+      "Impostos",
+      "Marketing"
+    ],
+    "contas": [
+      "Nubank",
+      "Caixa",
+      "Santander",
+      "Cofre Empresa"
+    ],
+    "contasInvestimento": [],
+    "clientes": [],
+    "statusLancamento": [
+      {
+        "id": "pago",
+        "label": "Pago"
+      },
+      {
+        "id": "previsto",
+        "label": "Previsto"
+      }
+    ],
+    "lastSyncedAt": null
+  }
+}

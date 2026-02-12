@@ -10,5 +10,29 @@
     "email": "simhal2016@gmail.com",
     "passwordHash": "$2b$10$aOzJFqa9itPcBhTFURjD1eyu6hd9aBGQngpGNUWFzmVAxdoZboCTK",
     "nome": "Antonio Marcos Ribeiro Rodrigues de Araujo"
+  },
+  {
+    "id": "user-1770502657846",
+    "email": "teste@gmail.com",
+    "passwordHash": "$2b$10$bqbuP0vnB0SgEgLBDa9hSO8w0V7Tmf4ft.9HXgvYw.ginPbC4ArYC",
+    "nome": "Teste"
+  },
+  {
+    "id": "user-1770502704969",
+    "email": "testet@gmail.com",
+    "passwordHash": "$2b$10$AP1EVvpsb6r/3rKATYGcguhbCmUnK0vvIqgcdA6QEoNQi85FykpOK",
+    "nome": "testet"
+  },
+  {
+    "id": "user-1770503999737",
+    "email": "TESTEAA@GMAIL.COM",
+    "passwordHash": "$2b$10$FP/ccwr2SmMNWSR4/zMHW.gxr7bQxFWicfiwAsaitk.2wR52rm65.",
+    "nome": "as"
+  },
+  {
+    "id": "user-1770504236181",
+    "email": "sadasfa@gmail.com",
+    "passwordHash": "$2b$10$bywFuuP3gHLjAT7851oAZeiTk/9Kg.qXk2YcY.DkMGUZlxbOHycJi",
+    "nome": "asdffgf"
   }
 ]

@@ -1,0 +1,58 @@
+{
+  "transacoes": [
+    {
+      "date": "2026-02-07",
+      "value": 130000,
+      "description": "Sistema",
+      "client": "Richard",
+      "type": "entrada",
+      "contexto": "empresa",
+      "contraparte": null,
+      "category": "Serviços",
+      "account": "Nubank",
+      "metodoPagamento": "pix",
+      "status": "pago",
+      "id": "tx_1770501399176_bohbedn",
+      "deleted": false,
+      "updatedAt": "2026-02-07T21:56:39.190Z"
+    }
+  ],
+  "recorrentes": [],
+  "config": {
+    "categorias": [
+      "Serviços",
+      "Infraestrutura",
+      "Assinaturas",
+      "Geral",
+      "Vendas",
+      "Impostos",
+      "Marketing"
+    ],
+    "contas": [
+      "Nubank",
+      "Caixa",
+      "Santander",
+      "Cofre Empresa"
+    ],
+    "contasInvestimento": [],
+    "clientes": [
+      {
+        "id": "cli_1770501399175_awm42we",
+        "nome": "Richard",
+        "telefone": "",
+        "endereco": ""
+      }
+    ],
+    "statusLancamento": [
+      {
+        "id": "pago",
+        "label": "Pago"
+      },
+      {
+        "id": "previsto",
+        "label": "Previsto"
+      }
+    ],
+    "lastSyncedAt": null
+  }
+}

@@ -26,8 +26,14 @@ export async function pullFromCloud() {
   if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
   const data = await res.json();
   const now = new Date().toISOString();
-  if (data.transacoes?.length) await db.putTransacoes(data.transacoes);
-  if (data.recorrentes?.length) await db.putRecorrentes(data.recorrentes);
+  if (Array.isArray(data.transacoes)) {
+    await db.transacoes.clear();
+    if (data.transacoes.length) await db.putTransacoes(data.transacoes);
+  }
+  if (Array.isArray(data.recorrentes)) {
+    await db.recorrentes.clear();
+    if (data.recorrentes.length) await db.putRecorrentes(data.recorrentes);
+  }
   if (data.config) {
     if (data.config.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
     if (data.config.contas?.length) await db.setConfig({ contas: data.config.contas });

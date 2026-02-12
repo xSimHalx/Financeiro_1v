@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Cartao, Botao } from '../../componentes/ui';
-import { RotateCcw, Plus, Pencil, Trash2 } from 'lucide-react';
+import { RotateCcw, Plus, Pencil, Trash2, Download } from 'lucide-react';
 import { useDados } from '../../store/ProviderDados';
 import { gerarId } from '../../lib/utils';
 
@@ -162,6 +162,19 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
+      <Cartao>
+        <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-500 mb-4">Servidor</h3>
+        <p className="text-slate-400 text-sm mb-4">
+          Baixe o pacote do servidor para instalar em outro PC (Mac ou Windows). Extraia o zip, execute <code className="text-xs bg-slate-800 px-1 rounded">npm install</code> e depois <code className="text-xs bg-slate-800 px-1 rounded">npm start</code> ou use os launchers <code className="text-xs bg-slate-800 px-1 rounded">start-server.bat</code> / <code className="text-xs bg-slate-800 px-1 rounded">start-server.command</code>.
+        </p>
+        <a
+          href="/vertexads-server.zip"
+          download="vertexads-server.zip"
+          className="inline-flex items-center gap-2 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-colors"
+        >
+          <Download size={16} /> Baixar servidor
+        </a>
+      </Cartao>
       <Cartao>
         <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-500 mb-4">Sincronização</h3>
         <p className="text-slate-400 text-sm mb-4">
