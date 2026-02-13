@@ -84,6 +84,8 @@ CORS_ORIGIN=http://localhost:5173
 |--------|------|-----------|
 | GET | /sync | Retorna snapshot do usuário. Query `?since=ISO` opcional (filtro incremental) |
 | POST | /sync | Envia alterações. Body: `{ transacoes, recorrentes, config }` |
+| POST | /api/report-error | Recebe erro do frontend e envia por email. Body: `{ message, stack, source, userAgent, timestamp }` |
+| GET | /api/email/test | Envia email de teste para `EMAIL_ERRORS_TO` |
 
 ## Migração JSON → SQLite
 

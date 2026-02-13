@@ -1,0 +1,17 @@
+{"location":"server.js","message":"imports-complete","data":{"cwd":"Z:\\Financeiro 2V\\server","h":"B"},"timestamp":1770939502493,"hypothesisId":"B"}
+{"location":"server.js","message":"jwt-secret-missing","data":{"h":"D"},"timestamp":1770939502521,"hypothesisId":"D"}
+{"location":"server.js","message":"initDb-done","data":{"h":"B"},"timestamp":1770939502529,"hypothesisId":"B"}
+{"location":"server.js","message":"request-hit","data":{"path":"/api/email/test","method":"GET","h":"A"},"timestamp":1770939507970,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/api/email/test","method":"GET","h":"A"},"timestamp":1770939654866,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/api/email/test","method":"GET","h":"A"},"timestamp":1770939656792,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/","method":"GET","h":"A"},"timestamp":1770939666900,"hypothesisId":"A"}
+{"location":"server.js","message":"imports-complete","data":{"cwd":"Z:\\Financeiro 2V\\server","h":"B"},"timestamp":1770939760026,"hypothesisId":"B"}
+{"location":"server.js","message":"jwt-secret-missing","data":{"h":"D"},"timestamp":1770939760052,"hypothesisId":"D"}
+{"location":"server.js","message":"initDb-done","data":{"h":"B"},"timestamp":1770939760059,"hypothesisId":"B"}
+{"location":"server.js","message":"request-hit","data":{"path":"/api/email/test","method":"GET","h":"A"},"timestamp":1770939764395,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/auth/me","method":"GET","h":"A"},"timestamp":1770942440519,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/sync","method":"GET","h":"A"},"timestamp":1770942440647,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/sync","method":"POST","h":"A"},"timestamp":1770942442661,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/sync","method":"POST","h":"A"},"timestamp":1770942456397,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/sync","method":"POST","h":"A"},"timestamp":1770942513529,"hypothesisId":"A"}
+{"location":"server.js","message":"request-hit","data":{"path":"/sync","method":"POST","h":"A"},"timestamp":1770942552393,"hypothesisId":"A"}
