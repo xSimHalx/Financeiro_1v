@@ -49,13 +49,17 @@ export async function register(email, password, nome, remember = true) {
 export async function me() {
   const token = getToken();
   if (!token || !API_URL) return null;
-  const res = await fetch(`${API_URL}/auth/me`, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!res.ok) return null;
-  const data = await res.json().catch(() => ({}));
-  return data.user || null;
+  try {
+    const res = await fetch(`${API_URL}/auth/me`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data.user || null;
+  } catch {
+    return null;
+  }
 }
 
 export function logout() {
