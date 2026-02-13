@@ -26,15 +26,12 @@ export async function pullFromCloud() {
   if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
   const data = await res.json();
   const now = new Date().toISOString();
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:pullFromCloud',message:'Before clear - checking db structure',data:{hasTransacoes:!!db.transacoes,hasRecorrentes:!!db.recorrentes,hasDb:!!db.db,hasDbTransacoes:!!(db.db?.transacoes),hasDbRecorrentes:!!(db.db?.recorrentes),dataHasTransacoes:Array.isArray(data.transacoes),dataHasRecorrentes:Array.isArray(data.recorrentes)},timestamp:Date.now(),hypothesisId:'H1,H2,H5'})}).catch(()=>{});
-  // #endregion
   if (Array.isArray(data.transacoes)) {
-    await db.transacoes.clear();
+    await db.db.transacoes.clear();
     if (data.transacoes.length) await db.putTransacoes(data.transacoes);
   }
   if (Array.isArray(data.recorrentes)) {
-    await db.recorrentes.clear();
+    await db.db.recorrentes.clear();
     if (data.recorrentes.length) await db.putRecorrentes(data.recorrentes);
   }
   if (data.config) {
@@ -81,15 +78,12 @@ export async function restoreFromCloud() {
   const res = await fetch(`${API_URL}/sync`, { method: 'GET', headers });
   if (!res.ok) throw new Error(`Restore failed: ${res.status}`);
   const data = await res.json();
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:restoreFromCloud',message:'Before clear - checking db structure',data:{hasTransacoes:!!db.transacoes,hasRecorrentes:!!db.recorrentes,hasDb:!!db.db,hasDbTransacoes:!!(db.db?.transacoes),hasDbRecorrentes:!!(db.db?.recorrentes)},timestamp:Date.now(),hypothesisId:'H1,H2,H5'})}).catch(()=>{});
-  // #endregion
   if (data.transacoes?.length) {
-    await db.transacoes.clear();
+    await db.db.transacoes.clear();
     await db.putTransacoes(data.transacoes);
   }
   if (data.recorrentes?.length) {
-    await db.recorrentes.clear();
+    await db.db.recorrentes.clear();
     await db.putRecorrentes(data.recorrentes);
   }
   if (data.config?.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
