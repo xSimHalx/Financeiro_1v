@@ -2,9 +2,16 @@ use rusqlite::{params, Connection};
 use serde_json::Value;
 
 const API_URL: &str = ""; // set via env TAURI_APP_CLOUD_API_URL or build
+const AUTH_TOKEN_KEY: &str = "authToken";
 
 fn api_url() -> String {
     std::env::var("TAURI_APP_CLOUD_API_URL").unwrap_or_else(|_| API_URL.to_string())
+}
+
+fn get_auth_token(conn: &Connection) -> Option<String> {
+    conn.query_row("SELECT value FROM config WHERE key = ?1", [AUTH_TOKEN_KEY], |r| r.get(0))
+        .ok()
+        .and_then(|s: String| if s.is_empty() { None } else { Some(s) })
 }
 
 pub fn migrate(conn: &Connection) -> Result<(), rusqlite::Error> {
@@ -178,11 +185,24 @@ fn tx_to_api(t: &Value) -> Value {
     t.clone()
 }
 
-pub fn sync_pull(conn: &Connection) -> Result<(), String> {
+pub fn set_auth_token(conn: &Connection, token: Option<&str>) -> Result<(), String> {
+    let value = token.unwrap_or("").to_string();
+    set_config(conn, AUTH_TOKEN_KEY, &value)
+}
+
+pub fn sync_pull(conn: &Connection, token_param: Option<String>) -> Result<(), String> {
     let url = api_url();
     if url.is_empty() {
         return Ok(());
     }
+    if let Some(ref t) = token_param {
+        if !t.is_empty() {
+            let _ = set_auth_token(conn, Some(t));
+        }
+    }
+    let token = token_param
+        .filter(|s| !s.is_empty())
+        .or_else(|| get_auth_token(conn));
     let config = get_config(conn)?;
     let since = config
         .get("lastSyncedAt")
@@ -197,7 +217,11 @@ pub fn sync_pull(conn: &Connection) -> Result<(), String> {
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client.get(&request_url).send().map_err(|e| e.to_string())?;
+    let mut req = client.get(&request_url);
+    if let Some(t) = &token {
+        req = req.header("Authorization", format!("Bearer {}", t));
+    }
+    let res = req.send().map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("sync pull failed: {}", res.status()));
     }
@@ -237,6 +261,7 @@ pub fn sync_push(conn: &Connection) -> Result<(), String> {
     if url.is_empty() {
         return Ok(());
     }
+    let token = get_auth_token(conn);
     let transacoes = get_all_transacoes(conn)?;
     let recorrentes = get_all_recorrentes(conn)?;
     let config = get_config(conn)?;
@@ -252,11 +277,13 @@ pub fn sync_push(conn: &Connection) -> Result<(), String> {
         .timeout(std::time::Duration::from_secs(15))
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client
+    let mut req = client
         .post(format!("{}/sync", url.trim_end_matches('/')))
-        .json(&body)
-        .send()
-        .map_err(|e| e.to_string())?;
+        .json(&body);
+    if let Some(t) = &token {
+        req = req.header("Authorization", format!("Bearer {}", t));
+    }
+    let res = req.send().map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("sync push failed: {}", res.status()));
     }
@@ -274,14 +301,19 @@ pub fn restore_from_cloud(conn: &Connection) -> Result<(), String> {
     if url.is_empty() {
         return Err("API URL não configurada. Defina TAURI_APP_CLOUD_API_URL.".to_string());
     }
+    let token = get_auth_token(conn);
+    if token.is_none() {
+        return Err("Token de autenticação não encontrado. Faça login primeiro.".to_string());
+    }
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
         .map_err(|e| e.to_string())?;
-    let res = client
-        .get(format!("{}/sync", url.trim_end_matches('/')))
-        .send()
-        .map_err(|e| e.to_string())?;
+    let mut req = client.get(format!("{}/sync", url.trim_end_matches('/')));
+    if let Some(t) = &token {
+        req = req.header("Authorization", format!("Bearer {}", t));
+    }
+    let res = req.send().map_err(|e| e.to_string())?;
     if !res.status().is_success() {
         return Err(format!("restore failed: {}", res.status()));
     }

@@ -9,6 +9,13 @@ export function ProviderAuth({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const saveTauriToken = (t) => {
+    if (typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ != null || window.__TAURI__ != null)) {
+      const invoke = window.__TAURI__?.core?.invoke;
+      if (invoke) invoke('set_auth_token', { token: t || null }).catch(() => {});
+    }
+  };
+
   const checkAuth = async () => {
     const t = auth.getToken();
     if (!t) {
@@ -25,6 +32,7 @@ export function ProviderAuth({ children }) {
     } else {
       setTokenState(t);
       setUser(u);
+      saveTauriToken(t);
     }
     setLoading(false);
   };
@@ -37,16 +45,19 @@ export function ProviderAuth({ children }) {
     const u = await auth.login(email, password, remember);
     setTokenState(auth.getToken());
     setUser(u);
+    saveTauriToken(auth.getToken());
   };
 
   const register = async (email, password, nome, remember = true) => {
     const u = await auth.register(email, password, nome, remember);
     setTokenState(auth.getToken());
     setUser(u);
+    saveTauriToken(auth.getToken());
   };
 
   const logout = () => {
     db.clearUserData().catch(() => {});
+    saveTauriToken(null);
     auth.logout();
     setTokenState(null);
     setUser(null);

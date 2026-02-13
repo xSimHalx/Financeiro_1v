@@ -101,10 +101,17 @@ fn set_config(state: State<AppState>, payload: SetConfigPayload) -> Result<(), S
 }
 
 #[tauri::command]
-fn sync_pull(state: State<AppState>) -> Result<(), String> {
+fn sync_pull(state: State<AppState>, token: Option<String>) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let c = conn.as_ref().ok_or("DB not open")?;
-    db::sync_pull(c)
+    db::sync_pull(c, token)
+}
+
+#[tauri::command]
+fn set_auth_token(state: State<AppState>, token: Option<String>) -> Result<(), String> {
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let c = conn.as_ref().ok_or("DB not open")?;
+    db::set_auth_token(c, token.as_deref())
 }
 
 #[tauri::command]
@@ -148,6 +155,7 @@ pub fn run() {
             put_recorrentes,
             get_config,
             set_config,
+            set_auth_token,
             sync_pull,
             sync_push,
             restore_from_cloud,

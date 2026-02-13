@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import * as db from '../lib/db';
+import * as auth from '../lib/auth';
 import { pullFromCloud, registerPushOnClose, isTauri } from '../lib/sync';
 import { DEFAULT_CONTAS, getContasFromConfig, validarContas } from '../lib/contas';
 import { normalizeClientes } from '../lib/clientes';
@@ -91,7 +92,7 @@ export function ProviderDados({ children }) {
           setClientesState(normalizeClientes(config?.clientes || []));
           setStatusLancamentoState((config?.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
           try {
-            await invoke('sync_pull');
+            await invoke('sync_pull', { token: auth.getToken() || undefined });
             if (cancelled) return;
             await lastPutTransacoesRef.current;
             if (cancelled) return;

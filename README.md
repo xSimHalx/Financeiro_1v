@@ -245,6 +245,27 @@ Instaladores gerados em:
 - **Windows**: `src-tauri/target/release/bundle/nsis/*.exe` e `msi/*.msi`
 - **macOS**: `src-tauri/target/release/bundle/dmg/*.dmg` e `macos/*.app`
 
+### Instalação no macOS (DMG)
+
+1. Abra o arquivo `.dmg` (duplo clique).
+2. Arraste o app para a pasta **Aplicativos**.
+3. Ejecte o disco (clique no ícone do disco na barra lateral e em Ejectar).
+4. Se aparecer **"está danificado"** ou **"não pode ser aberto"**:
+   - Use **clique direito** no app → **Abrir** → **Abrir**; ou
+   - No Terminal: `xattr -cr "/caminho/para/VertexAds Financeiro.app"` (substitua pelo caminho real).
+
+### Rodar o Tauri com servidor local
+
+```bash
+# Windows (PowerShell)
+$env:TAURI_APP_CLOUD_API_URL="http://localhost:3001"; npm run tauri dev
+
+# macOS / Linux
+TAURI_APP_CLOUD_API_URL="http://localhost:3001" npm run tauri dev
+```
+
+O servidor precisa estar rodando (`cd server && npm start`) e o `CORS_ORIGIN` em `server/.env` deve incluir a origem do app (ex.: `http://localhost:5173` em dev).
+
 ### GitHub Actions
 
 - Workflow em `.github/workflows/build.yml`
@@ -286,6 +307,12 @@ Instaladores gerados em:
 | Variável | Descrição |
 |----------|-----------|
 | `VITE_CLOUD_API_URL` | URL da API (ex.: `http://localhost:3001` ou `https://api.vertexads.com`) |
+
+### Tauri (app desktop)
+
+| Variável | Descrição |
+|----------|-----------|
+| `TAURI_APP_CLOUD_API_URL` | URL da API para sync (definir ao rodar ou no build). Ex.: `http://localhost:3001` |
 
 ### Servidor (`server/.env`)
 
