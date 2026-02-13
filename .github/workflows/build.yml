@@ -48,12 +48,15 @@ jobs:
         run: npm run tauri build
         env:
           CI: true
+          # localhost: cada máquina tem app + servidor local. Sobrescreva com vars.TAURI_APP_CLOUD_API_URL se precisar de API remota
+          TAURI_APP_CLOUD_API_URL: ${{ vars.TAURI_APP_CLOUD_API_URL || 'http://localhost:3001' }}
 
       - name: Build Tauri (macOS)
         if: matrix.platform == 'macos-latest'
         run: npm run tauri build
         env:
           CI: true
+          TAURI_APP_CLOUD_API_URL: ${{ vars.TAURI_APP_CLOUD_API_URL || 'http://localhost:3001' }}
 
       - name: Upload Windows artifacts
         if: matrix.platform == 'windows-latest'

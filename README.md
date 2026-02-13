@@ -273,6 +273,8 @@ O servidor precisa estar rodando (`cd server && npm start`) e o `CORS_ORIGIN` em
 - Jobs: `windows-latest` e `macos-latest`
 - Artefatos: `windows-installer` e `macos-installer` em Actions → Artifacts
 
+**URL da API no build:** Padrão `http://localhost:3001` (cada máquina tem app + servidor local). Para API remota, configure em **Settings** → **Secrets and variables** → **Actions** → **Variables** a variável `TAURI_APP_CLOUD_API_URL`.
+
 ---
 
 ## API e sincronização

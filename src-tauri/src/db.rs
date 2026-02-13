@@ -1,11 +1,14 @@
 use rusqlite::{params, Connection};
 use serde_json::Value;
 
-const API_URL: &str = ""; // set via env TAURI_APP_CLOUD_API_URL or build
+// Embutido no build. Padrão localhost:3001 (cada máquina tem app + servidor local)
 const AUTH_TOKEN_KEY: &str = "authToken";
 
 fn api_url() -> String {
-    std::env::var("TAURI_APP_CLOUD_API_URL").unwrap_or_else(|_| API_URL.to_string())
+    option_env!("TAURI_APP_CLOUD_API_URL")
+        .map(String::from)
+        .or_else(|| std::env::var("TAURI_APP_CLOUD_API_URL").ok())
+        .unwrap_or_else(|| "http://localhost:3001".to_string())
 }
 
 fn get_auth_token(conn: &Connection) -> Option<String> {
