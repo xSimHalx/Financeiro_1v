@@ -2,3 +2,5 @@ node_modules
 server/storage/
 server/.migrated-to-sqlite
 server/.env
+.cursor/debug.log
+server/debug-agent.log
