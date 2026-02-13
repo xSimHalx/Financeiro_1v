@@ -1,3 +1,4 @@
+import 'dotenv/config';
 // #region agent log
 import path from 'path';
 import fs from 'fs';
@@ -24,6 +25,7 @@ import { init as initDb } from './db.js';
 import * as usuariosRepo from './repos/usuariosRepo.js';
 import authRoutes from './routes/auth.js';
 import syncRoutes from './routes/sync.js';
+import errorsRoutes from './routes/errors.js';
 
 _log('imports-complete', { cwd: process.cwd(), h: 'B' });
 
@@ -78,6 +80,8 @@ app.use('/auth', authRoutes);
 
 app.use('/sync', limiterSync);
 app.use('/sync', syncRoutes);
+
+app.use('/api', errorsRoutes);
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
