@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Cartao, Botao } from '../../componentes/ui';
-import { RotateCcw, Plus, Pencil, Trash2, Download } from 'lucide-react';
+import { RotateCcw, Plus, Pencil, Trash2, Download, Wifi, WifiOff } from 'lucide-react';
 import { useDados } from '../../store/ProviderDados';
+import { useServerStatus } from '../../hooks';
 import { gerarId } from '../../lib/utils';
 
 function slugFromLabel(label) {
@@ -30,6 +31,7 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
   const [valorEditContaInvestimento, setValorEditContaInvestimento] = useState('');
   const [valorEditCliente, setValorEditCliente] = useState('');
   const [valorEditStatusLabel, setValorEditStatusLabel] = useState('');
+  const { status: serverStatus, mensagem: serverMsg, verificar: verificarServidor, checking: serverChecking } = useServerStatus();
 
   const handleRestaurar = async () => {
     if (!window.confirm('Isso vai substituir os dados locais pelos da nuvem. Continuar?')) return;
@@ -182,6 +184,27 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
           sincroniza uma vez com a nuvem. Use &quot;Restaurar da nuvem&quot; para substituir os dados locais
           pelo backup (útil em outro dispositivo ou após perda de dados).
         </p>
+        <div className="flex flex-wrap gap-3 items-center mb-4">
+          <Botao
+            tipo="button"
+            variante="ghost"
+            classeNome="flex items-center gap-2 text-slate-400 hover:text-white"
+            aoClicar={verificarServidor}
+            desabilitado={serverChecking}
+          >
+            {serverChecking ? (
+              <span className="animate-pulse">Verificando...</span>
+            ) : (
+              <>
+                {serverStatus === 'ok' ? <Wifi size={16} className="text-emerald-400" /> : <WifiOff size={16} />}
+                Verificar conexão com servidor
+              </>
+            )}
+          </Botao>
+          {serverStatus === 'ok' && <span className="text-emerald-400 text-xs font-bold flex items-center gap-1"><Wifi size={14} /> Conectado</span>}
+          {serverStatus === 'erro' && <span className="text-red-400 text-xs font-bold flex items-center gap-1"><WifiOff size={14} /> Desconectado</span>}
+        </div>
+        {serverMsg && <p className={`text-xs font-bold mb-3 ${serverStatus === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{serverMsg}</p>}
         {aoRestaurarDaNuvem && (
           <Botao
             tipo="button"

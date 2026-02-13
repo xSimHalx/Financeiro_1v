@@ -28,9 +28,12 @@ usuariosRepo.ensureAdminSeed('admin@vertexads.com', hashAdmin);
 
 const app = express();
 
-const corsOptions = CORS_ORIGIN
-  ? { origin: CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean), credentials: true }
-  : {};
+const corsOrigins = CORS_ORIGIN
+  ? CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+const corsOptions = corsOrigins.length
+  ? { origin: corsOrigins, credentials: true }
+  : { origin: true, credentials: true };
 app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '2mb' }));
@@ -50,6 +53,8 @@ const limiterSync = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
+
+app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.use('/auth/login', limiterAuth);
 app.use('/auth/register', limiterAuth);

@@ -109,7 +109,10 @@ export function ProviderDados({ children }) {
             if (Array.isArray(config2?.contasInvestimento)) setContasInvestimentoState(config2.contasInvestimento);
             if (config2?.clientes?.length) setClientesState(normalizeClientes(config2.clientes));
             if ((config2?.statusLancamento ?? []).length) setStatusLancamentoState(config2.statusLancamento);
-          } catch (_) {}
+            console.log('[Sync] pull OK – dados sincronizados com o servidor');
+          } catch (e) {
+            console.warn('[Sync] pull falhou (servidor offline ou sem token):', e?.message || e);
+          }
           hydrated.current = true;
         } catch (e) {
           console.warn('Tauri load failed', e);
@@ -150,7 +153,7 @@ export function ProviderDados({ children }) {
           if ((config2.clientes ?? []).length) setClientesState(normalizeClientes(config2.clientes));
           if ((config2.statusLancamento ?? []).length) setStatusLancamentoState(config2.statusLancamento);
         } catch (e) {
-          console.warn('Pull on open failed', e);
+          console.warn('[Sync] pull falhou (PWA):', e?.message || e);
         }
         registerPushOnClose();
       } finally {
@@ -185,6 +188,21 @@ export function ProviderDados({ children }) {
     if (recorrentes.length === 0) return;
     persistRecorrentes(recorrentes);
   }, [recorrentes, persistRecorrentes]);
+
+  // Tauri: salva ao perder foco (minimizar/trocar app) para não perder dados ao fechar
+  useEffect(() => {
+    if (!isTauri() || !hydrated.current) return;
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const invoke = getTauriInvoke();
+      if (invoke) {
+        invoke('put_transacoes', transacoes).catch(() => {});
+        invoke('put_recorrentes', recorrentes || []).catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [transacoes, recorrentes]);
 
   const setTransacoes = useCallback((updaterOrValue) => {
     setTransacoesState((prev) => {

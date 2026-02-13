@@ -9,6 +9,7 @@ struct AppState {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 struct Transacao {
     id: String,
     date: String,
@@ -128,12 +129,19 @@ fn restore_from_cloud(state: State<AppState>) -> Result<(), String> {
     db::restore_from_cloud(c)
 }
 
+fn db_path() -> std::path::PathBuf {
+    directories::ProjectDirs::from("com", "vertexads", "financeiro")
+        .map(|d| {
+            let dir = d.data_dir().to_path_buf();
+            let _ = std::fs::create_dir_all(&dir);
+            dir.join("vertexads.db")
+        })
+        .unwrap_or_else(|| std::path::PathBuf::from("vertexads.db"))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let db_path = std::env::current_dir()
-        .ok()
-        .map(|p| p.join("vertexads.db"))
-        .unwrap_or_else(|| std::path::PathBuf::from("vertexads.db"));
+    let db_path = db_path();
     let conn = rusqlite::Connection::open(&db_path).ok();
     if let Some(ref c) = conn {
         let _ = db::migrate(c);
@@ -170,6 +178,8 @@ pub fn run() {
                         let handle_inner = handle.clone();
                         let win_to_close = win_clone.clone();
                         std::thread::spawn(move || {
+                            // Aguarda put_transacoes/put_recorrentes do frontend completar antes de ler do DB
+                            std::thread::sleep(std::time::Duration::from_millis(500));
                             if let Some(state) = handle_inner.try_state::<AppState>() {
                                 if let Ok(guard) = state.db.lock() {
                                     if let Some(ref conn) = *guard {

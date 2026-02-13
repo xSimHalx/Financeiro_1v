@@ -27,6 +27,11 @@ function logVite500(req, res, body) {
 // #endregion
 
 export default defineConfig({
+  server: {
+    watch: {
+      ignored: ['**/src-tauri/target/**', '**/target/**', '**/.git/**']
+    }
+  },
   plugins: [
     react(),
     {

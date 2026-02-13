@@ -26,13 +26,14 @@ export async function pullFromCloud() {
   if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
   const data = await res.json();
   const now = new Date().toISOString();
-  if (Array.isArray(data.transacoes)) {
+  // Não limpar dados locais quando o servidor retorna vazio (ex: usuário novo sem snapshot)
+  if (Array.isArray(data.transacoes) && data.transacoes.length > 0) {
     await db.db.transacoes.clear();
-    if (data.transacoes.length) await db.putTransacoes(data.transacoes);
+    await db.putTransacoes(data.transacoes);
   }
-  if (Array.isArray(data.recorrentes)) {
+  if (Array.isArray(data.recorrentes) && data.recorrentes.length > 0) {
     await db.db.recorrentes.clear();
-    if (data.recorrentes.length) await db.putRecorrentes(data.recorrentes);
+    await db.putRecorrentes(data.recorrentes);
   }
   if (data.config) {
     if (data.config.categorias?.length) await db.setConfig({ categorias: data.config.categorias });

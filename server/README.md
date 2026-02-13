@@ -55,8 +55,10 @@ Exemplo `.env`:
 ```
 PORT=3001
 JWT_SECRET=sua-chave-secreta-forte-em-producao
-CORS_ORIGIN=http://localhost:5173
+CORS_ORIGIN=http://localhost:5173,tauri://localhost,http://localhost
 ```
+
+**App Tauri:** Para o app desktop conectar (login e auth), inclua `tauri://localhost` e `http://localhost` no CORS_ORIGIN. Se CORS_ORIGIN estiver vazio, o servidor aceita qualquer origem.
 
 ## Estrutura
 
