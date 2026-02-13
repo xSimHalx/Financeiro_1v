@@ -163,11 +163,12 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             if let Some(win) = app.get_webview_window("main") {
+                let win_clone = win.clone();
                 win.on_window_event(move |event| {
                     if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
                         let handle_inner = handle.clone();
-                        let win_to_close = win.clone();
+                        let win_to_close = win_clone.clone();
                         std::thread::spawn(move || {
                             if let Some(state) = handle_inner.try_state::<AppState>() {
                                 if let Ok(guard) = state.db.lock() {
