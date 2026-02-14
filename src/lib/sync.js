@@ -106,10 +106,24 @@ async function applySyncDataIncremental(incoming, now) {
 
 /**
  * Pull da nuvem: GET /sync. Usa snapshot completo ou incremental conforme lastSyncedAt.
+ * IMPORTANTE: Se há push pendente, tenta enviar ANTES de aplicar dados do servidor.
+ * Caso contrário, aplicar o pull sobrescreveria os dados locais não enviados.
  */
 export async function pullFromCloud() {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
   const config = await db.getConfig();
+  const pending = await db.getPendingPush();
+  if (pending && getToken()) {
+    const pushHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
+    const pushRes = await fetch(`${API_URL}/sync`, { method: 'POST', headers: pushHeaders, body: JSON.stringify(pending), cache: 'no-store' });
+    if (!pushRes.ok) {
+      console.warn('[Sync] push pendente falhou:', pushRes.status, '- dados locais preservados. Faça login novamente.');
+      throw new Error(`Sync push pendente falhou: ${pushRes.status}. Faça login novamente.`);
+    }
+    await db.setConfig({ lastSyncedAt: new Date().toISOString() });
+    await db.clearPendingPush();
+    console.log('[Sync] push pendente enviado com sucesso');
+  }
   const since = config.lastSyncedAt || '';
   const useIncremental = since && (Date.now() - new Date(since).getTime() < INCREMENTAL_SYNC_MAX_AGE_MS);
   const url = useIncremental ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
@@ -124,15 +138,6 @@ export async function pullFromCloud() {
     await applySyncDataIncremental(data, now);
   } else {
     await applySyncData(data, now);
-  }
-  const pending = await db.getPendingPush();
-  if (pending && getToken()) {
-    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
-    const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(pending), cache: 'no-store' });
-    if (res.ok) {
-      await db.setConfig({ lastSyncedAt: new Date().toISOString() });
-      await db.clearPendingPush();
-    }
   }
   if (data.transacoes?.length || data.recorrentes?.length) {
     console.log('[Sync] pull OK –', data.transacoes?.length || 0, 'transações,', data.recorrentes?.length || 0, 'recorrências');
@@ -158,7 +163,10 @@ export async function pushToCloud() {
   const fetchOpts = { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true };
   try {
     const res = await fetch(`${API_URL}/sync`, fetchOpts);
-    if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
+    if (!res.ok) {
+      if (res.status === 401) console.warn('[Sync] push 401 – token inválido. Faça logout e login novamente.');
+      throw new Error(`Sync push failed: ${res.status}`);
+    }
     const now = new Date().toISOString();
     await db.setConfig({ lastSyncedAt: now });
     await db.clearPendingPush();
