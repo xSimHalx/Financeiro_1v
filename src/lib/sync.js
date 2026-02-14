@@ -55,16 +55,12 @@ async function fetchWithRetry(url, options, { maxRetries = RETRY_MAX, baseDelayM
  * updatedAt compara como string ISO (ordenável).
  */
 function mergeByUpdatedAt(existing, incoming) {
-  const byId = new Map(existing.map((t) => [t.id, t]));
-  // Normaliza IDs para string para evitar duplicatas (ex: 1 vs "1")
   const byId = new Map(existing.map((t) => [String(t.id), t]));
   for (const t of incoming) {
-    const cur = byId.get(t.id);
     const idStr = String(t.id);
     const cur = byId.get(idStr);
     const tAt = t.updatedAt || '';
     const curAt = cur?.updatedAt || '';
-    if (!cur || (tAt && curAt && tAt > curAt)) byId.set(t.id, t);
     if (!cur || (tAt && curAt && tAt > curAt)) byId.set(idStr, t);
   }
   return Array.from(byId.values());
@@ -199,10 +195,6 @@ export async function pushToCloud() {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
   const token = getToken();
   if (!token) return { ok: true, skipped: true };
-  if (!token) {
-    console.warn('[Sync] Push ignorado: Usuário não autenticado.');
-    return { ok: true, skipped: true };
-  }
   const config = await db.getConfig();
   const transacoes = await db.getAllTransacoes(true);
   const recorrentes = await db.getAllRecorrentes();
