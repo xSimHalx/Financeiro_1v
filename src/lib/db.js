@@ -3,6 +3,7 @@ import { normalizeClientes } from './clientes.js';
 
 const DB_NAME = 'VertexAdsFinanceiro';
 const DB_VERSION = 2;
+const LS_BACKUP_KEY = 'VertexAds_transacoes_backup';
 
 export const db = new Dexie(DB_NAME);
 db.version(1).stores({
@@ -22,7 +23,20 @@ db.version(DB_VERSION).stores({
 export async function getAllTransacoes(includeDeleted = false) {
   let q = db.transacoes.orderBy('date').reverse();
   if (!includeDeleted) q = q.filter((t) => !t.deleted);
-  return q.toArray();
+  let items = await q.toArray();
+  if (items.length === 0 && typeof localStorage !== 'undefined') {
+    try {
+      const backup = localStorage.getItem(LS_BACKUP_KEY);
+      if (backup) {
+        const parsed = JSON.parse(backup);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          await db.transacoes.bulkPut(parsed);
+          items = includeDeleted ? parsed : parsed.filter((t) => !t.deleted);
+        }
+      }
+    } catch (_) {}
+  }
+  return items;
 }
 
 /**
@@ -44,6 +58,9 @@ export async function putTransacoes(arr) {
   const updatedAt = new Date().toISOString();
   const items = arr.map((t) => ({ ...t, updatedAt }));
   await db.transacoes.bulkPut(items);
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LS_BACKUP_KEY, JSON.stringify(items));
+  } catch (_) {}
   return updatedAt;
 }
 
@@ -161,4 +178,7 @@ export async function clearUserData() {
   await db.transacoes.clear();
   await db.recorrentes.clear();
   await db.config.delete('lastSyncedAt');
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(LS_BACKUP_KEY);
+  } catch (_) {}
 }

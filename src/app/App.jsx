@@ -166,7 +166,13 @@ function AppConteudo() {
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:handleSalvar',message:'BEFORE putTransacoes',data:{count:next.length,ids:next.map(t=>t.id)},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
       // #endregion
-      await db.putTransacoes(next);
+      try {
+        await db.putTransacoes(next);
+      } catch (e) {
+        console.error('[Salvar] Erro ao gravar:', e);
+        window.alert('Erro ao salvar. Tente novamente.');
+        return;
+      }
       // #region agent log
       fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:handleSalvar',message:'AFTER putTransacoes OK',data:{count:next.length},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
       // #endregion
