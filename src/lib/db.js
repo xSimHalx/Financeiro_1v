@@ -135,8 +135,9 @@ export async function getRecorrentesSince(since) {
   return db.recorrentes.where('updatedAt').above(since).toArray();
 }
 
-/** Limpa transações e recorrências do IndexedDB (isolamento ao trocar de usuário). */
+/** Limpa transações, recorrências e lastSyncedAt (isolamento ao trocar de usuário). */
 export async function clearUserData() {
   await db.transacoes.clear();
   await db.recorrentes.clear();
+  await db.config.delete('lastSyncedAt');
 }
