@@ -132,6 +132,18 @@ export function ProviderDados({ children }) {
         return;
       }
       try {
+        if (auth.getToken()) {
+          setSyncStatus('syncing');
+          setSyncError(null);
+          try {
+            await pullFromCloud();
+            if (cancelled) return;
+          } catch (e) {
+            console.warn('[Sync] pull falhou (PWA):', e?.message || e);
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao sincronizar');
+          }
+        }
         const [txs, recs, config] = await Promise.all([
           db.getAllTransacoes(true),
           db.getAllRecorrentes(),
@@ -148,26 +160,7 @@ export function ProviderDados({ children }) {
         setStatusLancamentoState((config.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
         hydrated.current = true;
         setLastSyncedAt(config.lastSyncedAt);
-        if (auth.getToken()) {
-          setSyncStatus('syncing');
-          setSyncError(null);
-          pullFromCloud()
-            .then(async () => {
-              if (cancelled) return;
-              const [txs2, recs2, cfg] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes(), db.getConfig()]);
-              if (cancelled) return;
-              const { txs: txsMig2, recs: recsMig2 } = migrarParaCentavos(txs2, recs2);
-              setTransacoesState(txsMig2);
-              setRecorrentesState(filtrarRecorrentesMock(recsMig2));
-              setLastSyncedAt(cfg.lastSyncedAt);
-              setSyncStatus('synced');
-            })
-            .catch((e) => {
-              console.warn('[Sync] pull falhou (PWA):', e?.message || e);
-              setSyncStatus('error');
-              setSyncError(e?.message || 'Falha ao sincronizar');
-            });
-        }
+        if (auth.getToken()) setSyncStatus('synced');
         registerPushOnClose({
           onPushStart: () => setSyncStatus('syncing'),
           onPushEnd: () => {
@@ -371,6 +364,22 @@ export function ProviderDados({ children }) {
       return pushToCloud()
         .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
         .catch((e) => { setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); throw e; });
+    },
+    triggerPull: async () => {
+      if (!auth.getToken()) return;
+      setSyncStatus('syncing');
+      setSyncError(null);
+      try {
+        await pullFromCloud();
+        await refreshFromDb();
+        const cfg = await db.getConfig();
+        setLastSyncedAt(cfg.lastSyncedAt);
+        setSyncStatus('synced');
+      } catch (e) {
+        setSyncStatus('error');
+        setSyncError(e?.message || 'Falha ao sincronizar');
+        throw e;
+      }
     }
   };
 

@@ -14,7 +14,7 @@ function slugFromLabel(label) {
  * Configurações: sync, gerenciar categorias, contas, clientes e status de lançamento
  */
 export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
-  const { categorias, contas, setCategorias, setContas, contasInvestimento, setContasInvestimento, clientes, setClientes, statusLancamento, setStatusLancamento, triggerPush } = useDados();
+  const { categorias, contas, setCategorias, setContas, contasInvestimento, setContasInvestimento, clientes, setClientes, statusLancamento, setStatusLancamento, triggerPush, triggerPull } = useDados();
   const [syncStatus, setSyncStatus] = useState('');
   const [erro, setErro] = useState('');
   const [novoCategoria, setNovoCategoria] = useState('');
@@ -225,6 +225,26 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
               }}
             >
               <UploadCloud size={16} /> Enviar para nuvem
+            </Botao>
+          )}
+          {triggerPull && !isTauri() && (
+            <Botao
+              tipo="button"
+              variante="secondary"
+              classeNome="flex items-center gap-2"
+              aoClicar={async () => {
+                setSyncStatus('Buscando...');
+                setErro('');
+                try {
+                  await triggerPull();
+                  setSyncStatus('Dados sincronizados da nuvem.');
+                } catch (e) {
+                  setErro(e?.message || 'Falha ao buscar.');
+                  setSyncStatus('');
+                }
+              }}
+            >
+              <Download size={16} /> Buscar da nuvem
             </Botao>
           )}
           {aoRestaurarDaNuvem && (
