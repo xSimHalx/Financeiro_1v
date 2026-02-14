@@ -61,15 +61,18 @@ export function ProviderDados({ children }) {
   const [syncError, setSyncError] = useState(null);
   const hydrated = useRef(false);
   const lastPutTransacoesRef = useRef(Promise.resolve());
-  const pushDebounceRef = useRef(null);
 
   const persistTransacoes = useCallback((next) => {
     if (!Array.isArray(next)) return;
-    db.putTransacoes(next).catch((e) => console.warn('Persist transacoes failed', e));
+    db.putTransacoes(next)
+      .then(() => auth.getToken() && pushToCloud().catch((e) => console.warn('[Sync] push falhou:', e?.message || e)))
+      .catch((e) => console.warn('Persist transacoes failed', e));
   }, []);
   const persistRecorrentes = useCallback((next) => {
     if (!Array.isArray(next)) return;
-    db.putRecorrentes(next).catch((e) => console.warn('Persist recorrentes failed', e));
+    db.putRecorrentes(next)
+      .then(() => auth.getToken() && pushToCloud().catch((e) => console.warn('[Sync] push falhou:', e?.message || e)))
+      .catch((e) => console.warn('Persist recorrentes failed', e));
   }, []);
 
   useEffect(() => {
@@ -208,20 +211,6 @@ export function ProviderDados({ children }) {
     }
     if (transacoes.length === 0) return;
     persistTransacoes(transacoes);
-    if (auth.getToken()) {
-      if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
-      pushDebounceRef.current = setTimeout(() => {
-        pushDebounceRef.current = null;
-        pushToCloud()
-          .then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
-          .catch((e) => {
-            console.warn('[Sync] push automático falhou:', e?.message || e);
-            setSyncStatus('error');
-            setSyncError(e?.message || 'Falha ao enviar');
-          });
-      }, 5000);
-    }
-    return () => { if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current); };
   }, [transacoes, persistTransacoes]);
 
   useEffect(() => {
@@ -233,20 +222,6 @@ export function ProviderDados({ children }) {
     }
     if (recorrentes.length === 0) return;
     persistRecorrentes(recorrentes);
-    if (auth.getToken()) {
-      if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
-      pushDebounceRef.current = setTimeout(() => {
-        pushDebounceRef.current = null;
-        pushToCloud()
-          .then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
-          .catch((e) => {
-            console.warn('[Sync] push automático falhou:', e?.message || e);
-            setSyncStatus('error');
-            setSyncError(e?.message || 'Falha ao enviar');
-          });
-      }, 5000);
-    }
-    return () => { if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current); };
   }, [recorrentes, persistRecorrentes]);
 
   // Tauri: salva ao perder foco (minimizar/trocar app) para não perder dados ao fechar

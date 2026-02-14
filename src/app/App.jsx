@@ -14,7 +14,7 @@ import { useFiltros, useEstadoFiltros, useSeletorMes, useMetricasEmpresa } from 
 import { METODOS_PAGAMENTO } from '../lib/constantes';
 import { nomeDoMes } from '../lib/formatadores';
 import { gerarId, addMeses } from '../lib/utils';
-import { restoreFromCloud } from '../lib/sync';
+import { restoreFromCloud, pushToCloud } from '../lib/sync';
 import { reaisParaCentavos, centavosParaReais } from '../lib/moeda';
 import * as db from '../lib/db';
 
@@ -165,6 +165,7 @@ function AppConteudo() {
         : [payload, ...transacoes];
       await db.putTransacoes(next);
       setTransacoes(next);
+      pushToCloud().catch((e) => console.warn('[Sync] push imediato falhou:', e?.message || e));
       setTransacaoEditando(null);
       setModalLancamentoAberto(false);
       const isNew = !transacaoEditando;
