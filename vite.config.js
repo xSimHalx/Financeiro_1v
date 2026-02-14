@@ -50,6 +50,7 @@ export default defineConfig({
       }
     },
     VitePWA({
+      disable: process.env.VITE_PWA_ENABLED === 'false',
       registerType: 'autoUpdate',
       workbox: {
         cacheId: 'vertexads-sync-v2',

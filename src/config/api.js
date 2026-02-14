@@ -1,6 +1,8 @@
 /**
  * URL base da API backend (auth, sync, health).
- * Definida em build via VITE_API_URL.
- * Ex.: https://api.simhal.tech ou http://localhost:3001 para dev local.
+ * Produção: VITE_API_URL (ex.: https://api.simhal.tech)
+ * Dev: fallback para localhost:3001
  */
-export const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+export const API_URL = (
+  import.meta.env.DEV ? 'http://localhost:3001' : (import.meta.env.VITE_API_URL || '')
+).replace(/\/$/, '');
