@@ -162,10 +162,14 @@ pub fn get_config(conn: &Connection) -> Result<Value, String> {
     let categorias: String = conn.query_row("SELECT value FROM config WHERE key = 'categorias'", [], |r| r.get(0)).unwrap_or_else(|_| "[]".to_string());
     let contas: String = conn.query_row("SELECT value FROM config WHERE key = 'contas'", [], |r| r.get(0)).unwrap_or_else(|_| "[]".to_string());
     let contas_investimento: String = conn.query_row("SELECT value FROM config WHERE key = 'contasInvestimento'", [], |r| r.get(0)).unwrap_or_else(|_| "[]".to_string());
+    let clientes: String = conn.query_row("SELECT value FROM config WHERE key = 'clientes'", [], |r| r.get(0)).unwrap_or_else(|_| "[]".to_string());
+    let status_lancamento: String = conn.query_row("SELECT value FROM config WHERE key = 'statusLancamento'", [], |r| r.get(0)).unwrap_or_else(|_| "[]".to_string());
     let last_synced: Option<String> = conn.query_row("SELECT value FROM config WHERE key = 'lastSyncedAt'", [], |r| r.get(0)).ok();
     map.insert("categorias".to_string(), serde_json::from_str(&categorias).unwrap_or(Value::Array(vec![])));
     map.insert("contas".to_string(), serde_json::from_str(&contas).unwrap_or(Value::Array(vec![])));
     map.insert("contasInvestimento".to_string(), serde_json::from_str(&contas_investimento).unwrap_or(Value::Array(vec![])));
+    map.insert("clientes".to_string(), serde_json::from_str(&clientes).unwrap_or(Value::Array(vec![])));
+    map.insert("statusLancamento".to_string(), serde_json::from_str(&status_lancamento).unwrap_or(Value::Array(vec![])));
     map.insert("lastSyncedAt".to_string(), last_synced.map(Value::String).unwrap_or(Value::Null));
     Ok(Value::Object(map))
 }
@@ -249,6 +253,12 @@ pub fn sync_pull(conn: &Connection, token_param: Option<String>) -> Result<(), S
         if let Some(ci) = cfg.get("contasInvestimento") {
             let _ = set_config(conn, "contasInvestimento", &ci.to_string());
         }
+        if let Some(cli) = cfg.get("clientes") {
+            let _ = set_config(conn, "clientes", &cli.to_string());
+        }
+        if let Some(sl) = cfg.get("statusLancamento") {
+            let _ = set_config(conn, "statusLancamento", &sl.to_string());
+        }
     }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -271,10 +281,18 @@ pub fn sync_push(conn: &Connection) -> Result<(), String> {
     let categorias = config.get("categorias").cloned().unwrap_or(Value::Array(vec![]));
     let contas = config.get("contas").cloned().unwrap_or(Value::Array(vec![]));
     let contas_investimento = config.get("contasInvestimento").cloned().unwrap_or(Value::Array(vec![]));
+    let clientes = config.get("clientes").cloned().unwrap_or(Value::Array(vec![]));
+    let status_lancamento = config.get("statusLancamento").cloned().unwrap_or(Value::Array(vec![]));
     let body = serde_json::json!({
         "transacoes": transacoes,
         "recorrentes": recorrentes,
-        "config": { "categorias": categorias, "contas": contas, "contasInvestimento": contas_investimento }
+        "config": {
+            "categorias": categorias,
+            "contas": contas,
+            "contasInvestimento": contas_investimento,
+            "clientes": clientes,
+            "statusLancamento": status_lancamento
+        }
     });
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
@@ -342,6 +360,12 @@ pub fn restore_from_cloud(conn: &Connection) -> Result<(), String> {
         }
         if let Some(ci) = cfg.get("contasInvestimento") {
             let _ = set_config(conn, "contasInvestimento", &ci.to_string());
+        }
+        if let Some(cli) = cfg.get("clientes") {
+            let _ = set_config(conn, "clientes", &cli.to_string());
+        }
+        if let Some(sl) = cfg.get("statusLancamento") {
+            let _ = set_config(conn, "statusLancamento", &sl.to_string());
         }
     }
     let now = std::time::SystemTime::now()

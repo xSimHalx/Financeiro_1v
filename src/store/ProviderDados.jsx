@@ -70,7 +70,14 @@ export function ProviderDados({ children }) {
         setSyncStatus('syncing');
         setSyncError(null);
         pushToCloud()
-          .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+          .then((r) => {
+            if (r?.ok === false) {
+              setSyncStatus('error');
+              setSyncError(r.error || `Falha ${r.status || ''}`);
+              return;
+            }
+            return db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); });
+          })
           .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
       })
       .catch((e) => console.warn('Persist transacoes failed', e));
@@ -83,7 +90,14 @@ export function ProviderDados({ children }) {
         setSyncStatus('syncing');
         setSyncError(null);
         pushToCloud()
-          .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+          .then((r) => {
+            if (r?.ok === false) {
+              setSyncStatus('error');
+              setSyncError(r.error || `Falha ${r.status || ''}`);
+              return;
+            }
+            return db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); });
+          })
           .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
       })
       .catch((e) => console.warn('Persist recorrentes failed', e));
@@ -132,13 +146,20 @@ export function ProviderDados({ children }) {
         return;
       }
       try {
+        let pullOk = true;
         if (auth.getToken()) {
           setSyncStatus('syncing');
           setSyncError(null);
           try {
-            await pullFromCloud();
+            const r = await pullFromCloud();
             if (cancelled) return;
+            if (r?.ok === false) {
+              pullOk = false;
+              setSyncStatus('error');
+              setSyncError(r.error === 'auth' ? 'Sessão expirada.' : r.error || 'Falha ao sincronizar');
+            }
           } catch (e) {
+            pullOk = false;
             console.warn('[Sync] pull falhou (PWA):', e?.message || e);
             setSyncStatus('error');
             setSyncError(e?.message || 'Falha ao sincronizar');
@@ -160,7 +181,7 @@ export function ProviderDados({ children }) {
         setStatusLancamentoState((config.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
         hydrated.current = true;
         setLastSyncedAt(config.lastSyncedAt);
-        if (auth.getToken()) setSyncStatus('synced');
+        if (auth.getToken() && pullOk) setSyncStatus('synced');
         registerPushOnClose({
           onPushStart: () => setSyncStatus('syncing'),
           onPushEnd: () => {
@@ -176,7 +197,12 @@ export function ProviderDados({ children }) {
             setSyncStatus('syncing');
             setSyncError(null);
             try {
-              await pullFromCloud();
+              const r = await pullFromCloud();
+              if (r?.ok === false) {
+                setSyncStatus('error');
+                setSyncError(r.error === 'auth' ? 'Sessão expirada.' : r.error || 'Falha ao sincronizar');
+                return;
+              }
               await refreshFromDb();
               const cfg = await db.getConfig();
               setLastSyncedAt(cfg.lastSyncedAt);
@@ -362,7 +388,14 @@ export function ProviderDados({ children }) {
       setSyncStatus('syncing');
       setSyncError(null);
       return pushToCloud()
-        .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+        .then((r) => {
+          if (r?.ok === false) {
+            setSyncStatus('error');
+            setSyncError(r.error || `Falha ${r.status || ''}`);
+            throw new Error(r.error || 'Push falhou');
+          }
+          return db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); });
+        })
         .catch((e) => { setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); throw e; });
     },
     triggerPull: async () => {
@@ -370,7 +403,12 @@ export function ProviderDados({ children }) {
       setSyncStatus('syncing');
       setSyncError(null);
       try {
-        await pullFromCloud();
+        const r = await pullFromCloud();
+        if (r?.ok === false) {
+          setSyncStatus('error');
+          setSyncError(r.error === 'auth' ? 'Sessão expirada. Faça login.' : r.error || 'Falha ao sincronizar');
+          return;
+        }
         await refreshFromDb();
         const cfg = await db.getConfig();
         setLastSyncedAt(cfg.lastSyncedAt);

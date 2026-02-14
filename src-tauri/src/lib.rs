@@ -178,12 +178,22 @@ pub fn run() {
                         let handle_inner = handle.clone();
                         let win_to_close = win_clone.clone();
                         std::thread::spawn(move || {
-                            // Aguarda put_transacoes/put_recorrentes do frontend completar antes de ler do DB
-                            std::thread::sleep(std::time::Duration::from_millis(500));
-                            if let Some(state) = handle_inner.try_state::<AppState>() {
-                                if let Ok(guard) = state.db.lock() {
-                                    if let Some(ref conn) = *guard {
-                                        let _ = db::sync_push(conn);
+                            // Aguarda frontend concluir put_transacoes/put_recorrentes antes de sync
+                            std::thread::sleep(std::time::Duration::from_millis(400));
+                            const RETRIES: u32 = 3;
+                            for attempt in 0..RETRIES {
+                                if let Some(state) = handle_inner.try_state::<AppState>() {
+                                    if let Ok(guard) = state.db.lock() {
+                                        if let Some(ref conn) = *guard {
+                                            match db::sync_push(conn) {
+                                                Ok(()) => break,
+                                                Err(e) if attempt < RETRIES - 1 => {
+                                                    eprintln!("[Sync] push on close attempt {} failed: {}, retrying...", attempt + 1, e);
+                                                    std::thread::sleep(std::time::Duration::from_millis(150));
+                                                }
+                                                Err(e) => eprintln!("[Sync] push on close failed after {} attempts: {}", RETRIES, e),
+                                            }
+                                        }
                                     }
                                 }
                             }

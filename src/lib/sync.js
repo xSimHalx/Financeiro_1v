@@ -51,73 +51,98 @@ async function fetchWithRetry(url, options, { maxRetries = RETRY_MAX, baseDelayM
 }
 
 /**
- * Merge por updatedAt (last-write-wins). Usado no sync incremental.
- * O cliente garante updatedAt em putTransacoes/putRecorrentes antes do push.
+ * Merge por id + updatedAt (last-write-wins). Evita perda de dados locais novos.
+ * updatedAt compara como string ISO (ordenável).
  */
 function mergeByUpdatedAt(existing, incoming) {
   const byId = new Map(existing.map((t) => [t.id, t]));
   for (const t of incoming) {
     const cur = byId.get(t.id);
-    if (!cur || (t.updatedAt && cur.updatedAt && t.updatedAt > cur.updatedAt)) byId.set(t.id, t);
+    const tAt = t.updatedAt || '';
+    const curAt = cur?.updatedAt || '';
+    if (!cur || (tAt && curAt && tAt > curAt)) byId.set(t.id, t);
   }
   return Array.from(byId.values());
 }
 
 /**
- * Aplica dados de sync no IndexedDB. Servidor é a fonte da verdade: substitui local.
- * (Push pendente é enviado antes do pull, então o servidor já tem os dados locais.)
+ * Aplica dados de sync full no IndexedDB. MERGE seguro (sem clear antes de put).
+ * lastSyncedAt só atualiza ao término com sucesso.
  */
 async function applySyncData(data, now) {
-  const txs = data.transacoes || [];
-  const recs = data.recorrentes || [];
-  await db.db.transacoes.clear();
-  if (txs.length > 0) await db.putTransacoes(txs);
-  await db.db.recorrentes.clear();
-  if (recs.length > 0) await db.putRecorrentes(recs);
-  if (data.config) {
-    if (data.config.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
-    if (data.config.contas?.length) await db.setConfig({ contas: data.config.contas });
-    if (Array.isArray(data.config.contasInvestimento)) await db.setConfig({ contasInvestimento: data.config.contasInvestimento });
-    if (Array.isArray(data.config.clientes)) await db.setConfig({ clientes: data.config.clientes });
-    if ((data.config.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: data.config.statusLancamento });
-  }
-  await db.setConfig({ lastSyncedAt: now });
+  const incomingTxs = data.transacoes || [];
+  const incomingRecs = data.recorrentes || [];
+  const dexie = db.db;
+
+  await dexie.transaction('rw', dexie.transacoes, dexie.recorrentes, dexie.config, async () => {
+    const [localTxs, localRecs] = await Promise.all([
+      dexie.transacoes.toArray(),
+      dexie.recorrentes.toArray()
+    ]);
+    const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
+    const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+    await dexie.transacoes.clear();
+    if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
+    await dexie.recorrentes.clear();
+    if (mergedRecs.length > 0) await dexie.recorrentes.bulkPut(mergedRecs);
+    if (data.config) {
+      if (data.config.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
+      if (data.config.contas?.length) await db.setConfig({ contas: data.config.contas });
+      if (Array.isArray(data.config.contasInvestimento)) await db.setConfig({ contasInvestimento: data.config.contasInvestimento });
+      if (Array.isArray(data.config.clientes)) await db.setConfig({ clientes: data.config.clientes });
+      if ((data.config.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: data.config.statusLancamento });
+    }
+    await db.setConfig({ lastSyncedAt: now });
+  });
 }
 
 /**
- * Aplica dados incrementais: mescla com locais por updatedAt (last-write-wins).
+ * Aplica dados incrementais: upsert por id+updatedAt, preserva locais.
+ * Nunca limpa tudo; merge + bulkPut dentro de transação.
  */
 async function applySyncDataIncremental(incoming, now) {
-  const [localTxs, localRecs] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes()]);
-  const mergedTxs = mergeByUpdatedAt(localTxs, incoming.transacoes || []);
-  const mergedRecs = mergeByUpdatedAt(localRecs, incoming.recorrentes || []);
-  await db.db.transacoes.clear();
-  await db.putTransacoes(mergedTxs);
-  await db.db.recorrentes.clear();
-  await db.putRecorrentes(mergedRecs);
-  if (incoming.config?.categorias?.length) await db.setConfig({ categorias: incoming.config.categorias });
-  if (incoming.config?.contas?.length) await db.setConfig({ contas: incoming.config.contas });
-  if (Array.isArray(incoming.config?.contasInvestimento)) await db.setConfig({ contasInvestimento: incoming.config.contasInvestimento });
-  if (Array.isArray(incoming.config?.clientes)) await db.setConfig({ clientes: incoming.config.clientes });
-  if ((incoming.config?.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: incoming.config.statusLancamento });
-  await db.setConfig({ lastSyncedAt: now });
+  const incomingTxs = incoming.transacoes || [];
+  const incomingRecs = incoming.recorrentes || [];
+  const dexie = db.db;
+
+  await dexie.transaction('rw', dexie.transacoes, dexie.recorrentes, dexie.config, async () => {
+    const [localTxs, localRecs] = await Promise.all([
+      dexie.transacoes.toArray(),
+      dexie.recorrentes.toArray()
+    ]);
+    const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
+    const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+    await dexie.transacoes.clear();
+    if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
+    await dexie.recorrentes.clear();
+    if (mergedRecs.length > 0) await dexie.recorrentes.bulkPut(mergedRecs);
+    if (incoming.config?.categorias?.length) await db.setConfig({ categorias: incoming.config.categorias });
+    if (incoming.config?.contas?.length) await db.setConfig({ contas: incoming.config.contas });
+    if (Array.isArray(incoming.config?.contasInvestimento)) await db.setConfig({ contasInvestimento: incoming.config.contasInvestimento });
+    if (Array.isArray(incoming.config?.clientes)) await db.setConfig({ clientes: incoming.config.clientes });
+    if ((incoming.config?.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: incoming.config.statusLancamento });
+    await db.setConfig({ lastSyncedAt: now });
+  });
 }
 
 /**
  * Pull da nuvem: GET /sync. Usa snapshot completo ou incremental conforme lastSyncedAt.
- * IMPORTANTE: Se há push pendente, tenta enviar ANTES de aplicar dados do servidor.
- * Caso contrário, aplicar o pull sobrescreveria os dados locais não enviados.
+ * IMPORTANTE: 401/403 não aplica dados; dados locais preservados.
  */
 export async function pullFromCloud() {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
+  const token = getToken();
   const config = await db.getConfig();
   const pending = await db.getPendingPush();
-  if (pending && getToken()) {
-    const pushHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
+  if (pending && token) {
+    const pushHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     const pushRes = await fetch(`${API_URL}/sync`, { method: 'POST', headers: pushHeaders, body: JSON.stringify(pending), cache: 'no-store' });
     if (!pushRes.ok) {
-      console.warn('[Sync] push pendente falhou:', pushRes.status, '- dados locais preservados. Faça login novamente.');
-      throw new Error(`Sync push pendente falhou: ${pushRes.status}. Faça login novamente.`);
+      if (pushRes.status === 401 || pushRes.status === 403) {
+        console.warn('[Sync] push pendente 401/403 – dados locais preservados.');
+        return { ok: false, error: 'auth', status: pushRes.status };
+      }
+      throw new Error(`Sync push pendente falhou: ${pushRes.status}`);
     }
     await db.setConfig({ lastSyncedAt: new Date().toISOString() });
     await db.clearPendingPush();
@@ -128,10 +153,15 @@ export async function pullFromCloud() {
   const baseUrl = useIncremental ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
   const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
   const headers = { Accept: 'application/json', 'Cache-Control': 'no-store', Pragma: 'no-cache' };
-  const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetchWithRetry(url, { method: 'GET', headers, cache: 'no-store' });
-  if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      console.warn('[Sync] pull 401/403 – dados locais preservados.');
+      return { ok: false, error: 'auth', status: res.status };
+    }
+    throw new Error(`Sync pull failed: ${res.status}`);
+  }
   const data = await res.json();
   const now = new Date().toISOString();
   if (useIncremental && (data.transacoes?.length || data.recorrentes?.length || data.config)) {
@@ -146,28 +176,26 @@ export async function pullFromCloud() {
 }
 
 /**
- * Push para nuvem: envia alterações locais desde lastSyncedAt. POST /sync.
- * Chamado ao fechar o app (pagehide) ou após alterações (debounced).
- * Usa keepalive: true para permitir o request completar ao fechar a aba.
+ * Push para nuvem: POST /sync. Sem token retorna skipped; 4xx/5xx retorna ok:false sem alterar lastSyncedAt.
  */
 export async function pushToCloud() {
-  if (isTauri() || !API_URL || !getToken()) return { ok: true, skipped: true };
+  if (isTauri() || !API_URL) return { ok: true, skipped: true };
+  const token = getToken();
+  if (!token) return { ok: true, skipped: true };
   const config = await db.getConfig();
   const transacoes = await db.getAllTransacoes(true);
   const recorrentes = await db.getAllRecorrentes();
   const body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
-  const headers = { 'Content-Type': 'application/json' };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const fetchOpts = { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true };
+  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   try {
-    const res = await fetch(`${API_URL}/sync`, fetchOpts);
+    const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true });
     if (!res.ok) {
-      if (res.status === 401) console.warn('[Sync] push 401 – token inválido. Faça logout e login novamente.');
-      throw new Error(`Sync push failed: ${res.status}`);
+      if (res.status === 401 || res.status === 403) console.warn('[Sync] push 401/403 – token inválido.');
+      const errText = await res.text().catch(() => '');
+      await db.setPendingPush(body);
+      return { ok: false, error: errText || `HTTP ${res.status}`, status: res.status };
     }
-    const now = new Date().toISOString();
-    await db.setConfig({ lastSyncedAt: now });
+    await db.setConfig({ lastSyncedAt: new Date().toISOString() });
     await db.clearPendingPush();
     return { ok: true };
   } catch (e) {
@@ -205,7 +233,14 @@ export function registerPushOnClose(callbacks = {}) {
     if (!API_URL) return;
     onPushStart?.();
     pushToCloud()
-      .then(() => onPushEnd?.())
+      .then((r) => {
+        if (r?.ok === false) {
+          console.warn('[Sync] push on close failed:', r.status, r.error);
+          onPushError?.(new Error(r.error || `HTTP ${r.status}`));
+          return;
+        }
+        onPushEnd?.();
+      })
       .catch((e) => {
         console.warn('Sync push on close failed', e);
         onPushError?.(e);

@@ -176,7 +176,14 @@ function AppConteudo() {
         setSyncStatus('syncing');
         setSyncError(null);
         pushToCloud()
-          .then(() => db.getConfig().then((c) => setSyncStatus('synced')))
+          .then((r) => {
+            if (r?.ok === false) {
+              setSyncStatus('error');
+              setSyncError(r.error || 'Falha ao enviar');
+              return;
+            }
+            return db.getConfig().then((c) => setSyncStatus('synced'));
+          })
           .catch((e) => { console.warn('[Sync] push imediato falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
       }
       setTransacaoEditando(null);
