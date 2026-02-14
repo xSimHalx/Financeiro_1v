@@ -64,17 +64,17 @@ function mergeByUpdatedAt(existing, incoming) {
 }
 
 /**
- * Aplica dados de sync no IndexedDB. Não limpa quando servidor retorna vazio.
+ * Aplica dados de sync no IndexedDB. SEMPRE mescla com locais (last-write-wins por updatedAt).
+ * Nunca sobrescreve: dados locais mais recentes são preservados.
  */
 async function applySyncData(data, now) {
-  if (Array.isArray(data.transacoes) && data.transacoes.length > 0) {
-    await db.db.transacoes.clear();
-    await db.putTransacoes(data.transacoes);
-  }
-  if (Array.isArray(data.recorrentes) && data.recorrentes.length > 0) {
-    await db.db.recorrentes.clear();
-    await db.putRecorrentes(data.recorrentes);
-  }
+  const [localTxs, localRecs] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes()]);
+  const mergedTxs = mergeByUpdatedAt(localTxs, data.transacoes || []);
+  const mergedRecs = mergeByUpdatedAt(localRecs, data.recorrentes || []);
+  await db.db.transacoes.clear();
+  await db.putTransacoes(mergedTxs);
+  await db.db.recorrentes.clear();
+  await db.putRecorrentes(mergedRecs);
   if (data.config) {
     if (data.config.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
     if (data.config.contas?.length) await db.setConfig({ contas: data.config.contas });

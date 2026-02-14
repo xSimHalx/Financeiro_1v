@@ -118,23 +118,6 @@ export function ProviderDados({ children }) {
         return;
       }
       try {
-        // Se tem token, puxa da nuvem PRIMEIRO para garantir dados atuais ao entrar na conta
-        if (auth.getToken()) {
-          setSyncStatus('syncing');
-          setSyncError(null);
-          try {
-            await pullFromCloud();
-            if (cancelled) return;
-            const cfg = await db.getConfig();
-            setLastSyncedAt(cfg.lastSyncedAt);
-            setSyncStatus('synced');
-          } catch (e) {
-            console.warn('[Sync] pull falhou (PWA):', e?.message || e);
-            setSyncStatus('error');
-            setSyncError(e?.message || 'Falha ao sincronizar');
-          }
-          if (cancelled) return;
-        }
         const [txs, recs, config] = await Promise.all([
           db.getAllTransacoes(true),
           db.getAllRecorrentes(),
@@ -151,6 +134,25 @@ export function ProviderDados({ children }) {
         setStatusLancamentoState((config.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
         hydrated.current = true;
         setLastSyncedAt(config.lastSyncedAt);
+        if (auth.getToken()) {
+          setSyncStatus('syncing');
+          setSyncError(null);
+          try {
+            await pullFromCloud();
+            if (cancelled) return;
+            const [txs2, recs2, cfg] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes(), db.getConfig()]);
+            if (cancelled) return;
+            const { txs: txsMig2, recs: recsMig2 } = migrarParaCentavos(txs2, recs2);
+            setTransacoesState(txsMig2);
+            setRecorrentesState(filtrarRecorrentesMock(recsMig2));
+            setLastSyncedAt(cfg.lastSyncedAt);
+            setSyncStatus('synced');
+          } catch (e) {
+            console.warn('[Sync] pull falhou (PWA):', e?.message || e);
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao sincronizar');
+          }
+        }
         registerPushOnClose({
           onPushStart: () => setSyncStatus('syncing'),
           onPushEnd: () => {
