@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://publishers-hip-performance-flex.trycloudflare.com').replace(/\/$/, '');
+import { API_URL } from '../config/api.js';
 
 /**
  * Hook para verificar se o app está se comunicando com o servidor.
@@ -17,7 +16,7 @@ export function useServerStatus() {
   const verificar = useCallback(async () => {
     if (!API_URL) {
       setStatus('erro');
-      setMensagem('API não configurada (VITE_CLOUD_API_URL vazio)');
+      setMensagem('API não configurada (VITE_API_URL vazio)');
       return;
     }
     setChecking(true);

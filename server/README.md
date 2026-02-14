@@ -113,4 +113,4 @@ curl -X POST http://localhost:3001/sync \
 
 ## Integração com o frontend
 
-O frontend deve ter `VITE_CLOUD_API_URL=http://localhost:3001` no `.env` para apontar para o servidor local.
+O frontend deve ter `VITE_API_URL=http://localhost:3001` no `.env` para apontar para o servidor local.

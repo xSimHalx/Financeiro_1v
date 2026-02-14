@@ -308,7 +308,7 @@ O servidor precisa estar rodando (`cd server && npm start`) e o `CORS_ORIGIN` em
 
 | Variável | Descrição |
 |----------|-----------|
-| `VITE_CLOUD_API_URL` | URL da API (ex.: `http://localhost:3001` ou `https://api.vertexads.com`) |
+| `VITE_API_URL` | URL da API (ex.: `http://localhost:3001` ou `https://api.simhal.tech`) |
 
 ### Tauri (app desktop)
 

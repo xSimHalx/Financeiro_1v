@@ -1,7 +1,6 @@
 import * as db from './db.js';
 import { getToken } from './auth.js';
-
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://publishers-hip-performance-flex.trycloudflare.com').replace(/\/$/, '');
+import { API_URL } from '../config/api.js';
 const FETCH_TIMEOUT_MS = 15_000;
 const RETRY_MAX = 2;
 const RETRY_BASE_DELAY_MS = 1000;
