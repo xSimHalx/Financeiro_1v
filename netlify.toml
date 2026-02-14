@@ -2,6 +2,9 @@
   publish = "dist"
   command = "npm run build"
 
+[build.environment]
+  VITE_CLOUD_API_URL = "https://publishers-hip-performance-flex.trycloudflare.com"
+
 # SPA: rotas desconhecidas servem index.html
 [[redirects]]
   from = "/*"
