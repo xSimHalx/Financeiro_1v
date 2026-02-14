@@ -38,6 +38,9 @@ export async function putTransacao(t) {
  * Inclui ou atualiza várias transações
  */
 export async function putTransacoes(arr) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'db.js:putTransacoes',message:'entry',data:{count:arr?.length},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const updatedAt = new Date().toISOString();
   const items = arr.map((t) => ({ ...t, updatedAt }));
   await db.transacoes.bulkPut(items);

@@ -63,6 +63,9 @@ export function ProviderDados({ children }) {
   const lastPutTransacoesRef = useRef(Promise.resolve());
 
   const persistTransacoes = useCallback((next) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:persistTransacoes',message:'called',data:{count:next?.length,isArray:Array.isArray(next)},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     if (!Array.isArray(next)) return;
     db.putTransacoes(next)
       .then(() => auth.getToken() && pushToCloud().catch((e) => console.warn('[Sync] push falhou:', e?.message || e)))
@@ -124,6 +127,9 @@ export function ProviderDados({ children }) {
           db.getConfig()
         ]);
         if (cancelled) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:load',message:'IndexedDB loaded',data:{txsCount:txs?.length,recsCount:recs?.length},hypothesisId:'H5',timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         const { txs: txsMig, recs: recsMig } = migrarParaCentavos(txs, recs);
         setTransacoesState(txsMig);
         setRecorrentesState(filtrarRecorrentesMock(recsMig));
@@ -201,7 +207,10 @@ export function ProviderDados({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!hydrated.current) return;
+    if (!hydrated.current) {
+      fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:useEffect persist',message:'SKIP not hydrated',data:{transacoesLen:transacoes?.length},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
+      return;
+    }
     if (isTauri()) {
       const invoke = getTauriInvoke();
       if (invoke) {

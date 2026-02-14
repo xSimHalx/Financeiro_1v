@@ -71,6 +71,9 @@ async function applySyncData(data, now) {
   const [localTxs, localRecs] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes()]);
   const mergedTxs = mergeByUpdatedAt(localTxs, data.transacoes || []);
   const mergedRecs = mergeByUpdatedAt(localRecs, data.recorrentes || []);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:applySyncData',message:'merge',data:{localCount:localTxs?.length,serverCount:(data.transacoes||[])?.length,mergedCount:mergedTxs?.length},hypothesisId:'H5',timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   await db.db.transacoes.clear();
   await db.putTransacoes(mergedTxs);
   await db.db.recorrentes.clear();
@@ -152,11 +155,20 @@ export async function pullFromCloud() {
  * Usa keepalive: true para permitir o request completar ao fechar a aba.
  */
 export async function pushToCloud() {
-  if (isTauri() || !API_URL || !getToken()) return { ok: true, skipped: true };
+  const hasToken = !!getToken();
+  const hasApi = !!API_URL;
+  const isT = isTauri();
+  // #region agent log
+  if (isT || !hasApi || !hasToken) fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:pushToCloud',message:'SKIP',data:{isTauri:isT,hasApi,hasToken},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  if (isT || !API_URL || !getToken()) return { ok: true, skipped: true };
   const config = await db.getConfig();
   const since = config.lastSyncedAt || null;
   const transacoes = await db.getTransacoesSince(since);
   const recorrentes = await db.getRecorrentesSince(since);
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:pushToCloud',message:'sending',data:{since,transacoesCount:transacoes?.length,recorrentesCount:recorrentes?.length},hypothesisId:'H3',timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
   const body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
@@ -171,8 +183,14 @@ export async function pushToCloud() {
     const now = new Date().toISOString();
     await db.setConfig({ lastSyncedAt: now });
     await db.clearPendingPush();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:pushToCloud',message:'SUCCESS',data:{},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return { ok: true };
   } catch (e) {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'sync.js:pushToCloud',message:'FAIL',data:{err:String(e?.message||e)},hypothesisId:'H2',timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     await db.setPendingPush(body);
     throw e;
   }
