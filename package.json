@@ -11,9 +11,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:dev:cloud": "cross-env TAURI_APP_CLOUD_API_URL=https://cold-layout-attribute-improvements.trycloudflare.com npm run tauri dev",
+    "tauri:dev:cloud": "cross-env TAURI_APP_CLOUD_API_URL=https://interested-accessories-recognition-elections.trycloudflare.com npm run tauri dev",
     "tauri:build": "tauri build",
-    "tauri:build:cloud": "cross-env TAURI_APP_CLOUD_API_URL=https://cold-layout-attribute-improvements.trycloudflare.com npm run tauri build",
+    "tauri:build:cloud": "cross-env TAURI_APP_CLOUD_API_URL=https://interested-accessories-recognition-elections.trycloudflare.com npm run tauri build",
     "tauri:build:win": "set PATH=%USERPROFILE%\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\bin;%USERPROFILE%\\.cargo\\bin;%PATH% && tauri build"
   },
   "dependencies": {

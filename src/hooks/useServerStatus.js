@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://cold-layout-attribute-improvements.trycloudflare.com').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://interested-accessories-recognition-elections.trycloudflare.com').replace(/\/$/, '');
 
 /**
  * Hook para verificar se o app está se comunicando com o servidor.
