@@ -54,8 +54,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
-          // Sync e auth: sempre usar rede (NetworkOnly) para não servir cache vazio após login
-          { urlPattern: /\/sync(\?|$|\/)/, handler: 'NetworkOnly' },
+          // Sync e auth: sempre usar rede (NetworkOnly) - nunca cachear para evitar dados desatualizados
+          { urlPattern: /\/sync(\?|$|\/)/, handler: 'NetworkOnly', method: 'GET' },
+          { urlPattern: /\/sync(\?|$|\/)/, handler: 'NetworkOnly', method: 'POST' },
           { urlPattern: /\/auth\//, handler: 'NetworkOnly' }
         ]
       },

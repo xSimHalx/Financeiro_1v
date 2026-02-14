@@ -126,8 +126,9 @@ export async function pullFromCloud() {
   }
   const since = config.lastSyncedAt || '';
   const useIncremental = since && (Date.now() - new Date(since).getTime() < INCREMENTAL_SYNC_MAX_AGE_MS);
-  const url = useIncremental ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
-  const headers = { Accept: 'application/json' };
+  const baseUrl = useIncremental ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
+  const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}_=${Date.now()}`;
+  const headers = { Accept: 'application/json', 'Cache-Control': 'no-store', Pragma: 'no-cache' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetchWithRetry(url, { method: 'GET', headers, cache: 'no-store' });
