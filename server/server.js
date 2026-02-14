@@ -32,18 +32,22 @@ const app = express();
 // Necessário atrás de proxy (Cloudflare Tunnel, nginx, etc.) para X-Forwarded-For
 app.set('trust proxy', 1);
 
-const defaultOrigins = [
-  'https://gestorfinanceirosimhal.netlify.app',
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000'
-];
-const corsOrigins = CORS_ORIGIN
-  ? [...new Set([...CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean), ...defaultOrigins])]
-  : defaultOrigins;
-const corsOptions = { origin: corsOrigins, credentials: true };
+// CORS: CORS_ORIGIN obrigatório em produção (whitelist). Lista separada por vírgula.
+const allowedOrigins = CORS_ORIGIN
+  ? CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
+  : [];
+const corsOptions = {
+  credentials: true,
+  origin: CORS_ORIGIN
+    ? (origin, callback) => {
+        if (!origin) return callback(null, true); // curl, Postman, etc.
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        callback(new Error('Not allowed by CORS'));
+      }
+    : true
+};
 app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '2mb' }));
 
