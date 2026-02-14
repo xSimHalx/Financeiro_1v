@@ -16,6 +16,7 @@ import { nomeDoMes } from '../lib/formatadores';
 import { gerarId, addMeses } from '../lib/utils';
 import { restoreFromCloud } from '../lib/sync';
 import { reaisParaCentavos, centavosParaReais } from '../lib/moeda';
+import * as db from '../lib/db';
 
 function AppConteudo() {
   const { user } = useAuth();
@@ -144,7 +145,7 @@ function AppConteudo() {
   }, [visualizacaoContexto, CATEGORIAS, LISTA_CONTAS, statusLancamento]);
 
   const handleSalvar = useCallback(
-    (form) => {
+    async (form) => {
       const clientTrim = (form.client || '').trim();
       const lista = LISTA_CLIENTES || [];
       const jaExiste = lista.some((c) => (typeof c === 'string' ? c : c.nome) === clientTrim);
@@ -159,17 +160,17 @@ function AppConteudo() {
         contexto: form.contexto ?? 'empresa',
         contraparte: form.contraparte ?? null
       };
-      if (transacaoEditando) {
-        setTransacoes((prev) => prev.map((t) => (t.id === transacaoEditando.id ? payload : t)));
-      } else {
-        setTransacoes((prev) => [payload, ...prev]);
-      }
+      const next = transacaoEditando
+        ? transacoes.map((t) => (t.id === transacaoEditando.id ? payload : t))
+        : [payload, ...transacoes];
+      await db.putTransacoes(next);
+      setTransacoes(next);
       setTransacaoEditando(null);
       setModalLancamentoAberto(false);
       const isNew = !transacaoEditando;
       if (isNew) aoMudarVisualizacao('transactions');
     },
-    [transacaoEditando, setTransacoes, LISTA_CLIENTES, setClientes, aoMudarVisualizacao]
+    [transacaoEditando, transacoes, setTransacoes, LISTA_CLIENTES, setClientes, aoMudarVisualizacao]
   );
 
   const handleExcluirDefinitivamente = useCallback((id) => {

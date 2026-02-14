@@ -34,9 +34,9 @@ export function FormularioLancamento({
   const contextoAtual = formulario.contexto || 'empresa';
   const opcoesContra = useMemo(() => opcoesContraparte(contextoAtual), [contextoAtual]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    aoSalvar(formulario);
+    await aoSalvar?.(formulario);
   };
 
   const aoMudarContexto = (novoContexto) => {
