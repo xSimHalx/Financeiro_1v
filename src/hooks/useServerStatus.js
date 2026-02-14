@@ -1,12 +1,9 @@
 import { useState, useCallback } from 'react';
-import { API_URL } from '../config/api.js';
+import { checkHealth, API_URL } from '../services/api.js';
 
 /**
  * Hook para verificar se o app está se comunicando com o servidor.
- * Retorna { status, verificar, checking } onde:
- * - status: 'ok' | 'erro' | null (nunca verificou)
- * - verificar: função para testar a conexão
- * - checking: boolean indicando se está verificando
+ * Retorna { status, mensagem, verificar, checking, apiUrl }.
  */
 export function useServerStatus() {
   const [status, setStatus] = useState(null);
@@ -23,18 +20,14 @@ export function useServerStatus() {
     setStatus(null);
     setMensagem('');
     try {
-      const res = await fetch(`${API_URL.replace(/\/$/, '')}/health`, { method: 'GET' });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.ok) {
+      const result = await checkHealth();
+      if (result.ok) {
         setStatus('ok');
         setMensagem(`Servidor em ${API_URL} respondeu OK`);
       } else {
         setStatus('erro');
-        setMensagem(`Servidor retornou ${res.status}`);
+        setMensagem(result.error || 'Falha ao conectar');
       }
-    } catch (e) {
-      setStatus('erro');
-      setMensagem(e?.message || 'Falha ao conectar. Verifique se o servidor está rodando (npm start na pasta server).');
     } finally {
       setChecking(false);
     }

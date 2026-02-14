@@ -223,6 +223,50 @@ npm run build
 npm run preview
 ```
 
+### Deploy na Hostinger (site estático)
+
+1. **Configurar variáveis de ambiente antes do build**
+   - Copie `.env.production` ou defina `VITE_API_URL=https://simhal.tech` antes de rodar o build.
+
+2. **Build de produção**
+   ```bash
+   npm install
+   npm run build
+   ```
+
+3. **Enviar para o servidor**
+   - Envie todo o conteúdo da pasta `dist/` para `public_html` (ou a pasta do site na Hostinger) via FTP/SFTP ou Gerenciador de Arquivos.
+
+4. **SPA (rotas)**
+   - Configure o servidor para redirecionar rotas desconhecidas para `index.html`. Na Hostinger, use `.htaccess`:
+   ```apache
+   <IfModule mod_rewrite.c>
+     RewriteEngine On
+     RewriteBase /
+     RewriteRule ^index\.html$ - [L]
+     RewriteCond %{REQUEST_FILENAME} !-f
+     RewriteCond %{REQUEST_FILENAME} !-d
+     RewriteRule . /index.html [L]
+   </IfModule>
+   ```
+
+5. **Testar conectividade**
+   - Abra o site e verifique o console (F12): deve aparecer `[API] OK – servidor acessível` se a API estiver respondendo.
+   - Ou use Configurações → botão para verificar servidor.
+
+### Testar /health
+
+- No navegador: `https://simhal.tech/health` → deve retornar `{"ok":true,"ts":...,"timestamp":...}`.
+- No terminal: `curl https://simhal.tech/health`.
+
+### CORS e possíveis erros
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| CORS blocked | Origin do front não está em `CORS_ORIGIN` | Adicione a URL do site (ex.: `https://paleturquoise-chough-748488.hostingersite.com`) em `server/.env` → `CORS_ORIGIN=...` |
+| 401 Unauthorized | Token inválido ou expirado | Fazer login novamente |
+| ERR_NAME_NOT_RESOLVED | URL da API incorreta | Verifique `VITE_API_URL` no build. Use `npm run build` com `.env.production` ou variável definida. |
+
 ---
 
 ## Build e distribuição
@@ -304,11 +348,12 @@ O servidor precisa estar rodando (`cd server && npm start`) e o `CORS_ORIGIN` em
 
 ## Variáveis de ambiente
 
-### Frontend (`.env`)
+### Frontend
 
-| Variável | Descrição |
-|----------|-----------|
-| `VITE_API_URL` | URL da API (ex.: `http://localhost:3001` ou `https://api.simhal.tech`) |
+| Arquivo | Variável | Descrição |
+|---------|----------|-----------|
+| `.env` | `VITE_API_URL` | Dev: `http://localhost:3000` (ou 3001 conforme a porta do backend) |
+| `.env.production` | `VITE_API_URL` | Prod: `https://simhal.tech` |
 
 ### Tauri (app desktop)
 

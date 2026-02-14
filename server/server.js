@@ -85,7 +85,7 @@ const limiterSync = safeRateLimit({
   legacyHeaders: false
 });
 
-app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now(), timestamp: Date.now() }));
 
 app.use('/auth/login', limiterAuth);
 app.use('/auth/register', limiterAuth);
