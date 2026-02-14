@@ -11,14 +11,12 @@ export function isTauri() {
 }
 
 /**
- * Pull da nuvem: GET /sync?since=ISO. Mescla no IndexedDB e atualiza lastSyncedAt.
- * Chamado ao abrir o app (uma vez).
+ * Pull da nuvem: GET /sync (snapshot completo). Substitui dados locais.
+ * Chamado ao abrir o app (uma vez). Sempre busca snapshot completo para evitar perda de dados.
  */
 export async function pullFromCloud() {
-  if (isTauri() || !API_URL || !navigator.onLine) return { ok: true, skipped: true };
-  const config = await db.getConfig();
-  const since = config.lastSyncedAt || '';
-  const url = since ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
+  if (isTauri() || !API_URL) return { ok: true, skipped: true };
+  const url = `${API_URL}/sync`;
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -43,6 +41,9 @@ export async function pullFromCloud() {
     if ((data.config.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: data.config.statusLancamento });
   }
   await db.setConfig({ lastSyncedAt: now });
+  if (data.transacoes?.length || data.recorrentes?.length) {
+    console.log('[Sync] pull OK –', data.transacoes?.length || 0, 'transações,', data.recorrentes?.length || 0, 'recorrências');
+  }
   return { ok: true };
 }
 
@@ -72,7 +73,7 @@ export async function pushToCloud() {
  */
 export async function restoreFromCloud() {
   if (isTauri()) return { ok: false, message: 'Use o comando Restaurar no app desktop.' };
-  if (!API_URL || !navigator.onLine) throw new Error('Sem conexão ou API não configurada.');
+  if (!API_URL) throw new Error('API não configurada.');
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
