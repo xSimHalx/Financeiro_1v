@@ -54,7 +54,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
-          { urlPattern: /^https:\/\/.*\/sync.*/, handler: 'NetworkFirst', options: { cacheName: 'api-cache', networkTimeoutSeconds: 10 } }
+          // Sync e auth: sempre usar rede (NetworkOnly) para não servir cache vazio após login
+          { urlPattern: /\/sync(\?|$|\/)/, handler: 'NetworkOnly' },
+          { urlPattern: /\/auth\//, handler: 'NetworkOnly' }
         ]
       },
       manifest: {

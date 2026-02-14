@@ -20,7 +20,7 @@ export async function pullFromCloud() {
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { method: 'GET', headers });
+  const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
   if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
   const data = await res.json();
   const now = new Date().toISOString();
@@ -61,7 +61,7 @@ export async function pushToCloud() {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body) });
+  const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
   if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
   const now = new Date().toISOString();
   await db.setConfig({ lastSyncedAt: now });
@@ -77,7 +77,7 @@ export async function restoreFromCloud() {
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}/sync`, { method: 'GET', headers });
+  const res = await fetch(`${API_URL}/sync`, { method: 'GET', headers, cache: 'no-store' });
   if (!res.ok) throw new Error(`Restore failed: ${res.status}`);
   const data = await res.json();
   if (data.transacoes?.length) {
