@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-const API_URL = import.meta.env.VITE_CLOUD_API_URL || '';
+const API_URL = (import.meta.env.VITE_CLOUD_API_URL || '').replace(/\/$/, '');
 
 /**
  * Hook para verificar se o app está se comunicando com o servidor.
