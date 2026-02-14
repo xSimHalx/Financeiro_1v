@@ -77,6 +77,18 @@ export function ProviderDados({ children }) {
           if (!invoke) throw new Error('Tauri core not available');
           await lastPutTransacoesRef.current;
           if (cancelled) return;
+          // Se tem token, puxa da nuvem PRIMEIRO para garantir dados atuais ao entrar na conta
+          if (auth.getToken()) {
+            try {
+              await invoke('sync_pull', { token: auth.getToken() || undefined });
+              if (cancelled) return;
+              await lastPutTransacoesRef.current;
+              if (cancelled) return;
+              console.log('[Sync] pull OK – dados sincronizados com o servidor');
+            } catch (e) {
+              console.warn('[Sync] pull falhou (servidor offline ou sem token):', e?.message || e);
+            }
+          }
           const [txs, recs, config] = await Promise.all([
             invoke('get_transacoes').then((r) => r || []),
             invoke('get_recorrentes').then((r) => r || []),
@@ -91,28 +103,6 @@ export function ProviderDados({ children }) {
           setContasInvestimentoState(Array.isArray(config?.contasInvestimento) ? config.contasInvestimento : []);
           setClientesState(normalizeClientes(config?.clientes || []));
           setStatusLancamentoState((config?.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
-          try {
-            await invoke('sync_pull', { token: auth.getToken() || undefined });
-            if (cancelled) return;
-            await lastPutTransacoesRef.current;
-            if (cancelled) return;
-            const [txs2, recs2, config2] = await Promise.all([
-              invoke('get_transacoes').then((r) => r || []),
-              invoke('get_recorrentes').then((r) => r || []),
-              invoke('get_config').then((r) => r || {})
-            ]);
-            const { txs: txs2Mig, recs: recs2Mig } = migrarParaCentavos(txs2 || [], recs2 || [], getTauriInvoke());
-            setTransacoesState(Array.isArray(txs2Mig) ? txs2Mig : []);
-            setRecorrentesState(filtrarRecorrentesMock(Array.isArray(recs2Mig) ? recs2Mig : []));
-            if (config2?.categorias?.length) setCategorias(config2.categorias);
-            if (config2?.contas?.length) setContas(validarContas(config2.contas));
-            if (Array.isArray(config2?.contasInvestimento)) setContasInvestimentoState(config2.contasInvestimento);
-            if (config2?.clientes?.length) setClientesState(normalizeClientes(config2.clientes));
-            if ((config2?.statusLancamento ?? []).length) setStatusLancamentoState(config2.statusLancamento);
-            console.log('[Sync] pull OK – dados sincronizados com o servidor');
-          } catch (e) {
-            console.warn('[Sync] pull falhou (servidor offline ou sem token):', e?.message || e);
-          }
           hydrated.current = true;
         } catch (e) {
           console.warn('Tauri load failed', e);
@@ -121,6 +111,15 @@ export function ProviderDados({ children }) {
         return;
       }
       try {
+        // Se tem token, puxa da nuvem PRIMEIRO para garantir dados atuais ao entrar na conta
+        if (auth.getToken()) {
+          try {
+            await pullFromCloud();
+          } catch (e) {
+            console.warn('[Sync] pull falhou (PWA):', e?.message || e);
+          }
+          if (cancelled) return;
+        }
         const [txs, recs, config] = await Promise.all([
           db.getAllTransacoes(true),
           db.getAllRecorrentes(),
@@ -136,25 +135,6 @@ export function ProviderDados({ children }) {
         setClientesState(normalizeClientes(config.clientes || []));
         setStatusLancamentoState((config.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
         hydrated.current = true;
-        try {
-          await pullFromCloud();
-          if (cancelled) return;
-          const [txs2, recs2, config2] = await Promise.all([
-            db.getAllTransacoes(true),
-            db.getAllRecorrentes(),
-            db.getConfig()
-          ]);
-          const { txs: txs2Mig, recs: recs2Mig } = migrarParaCentavos(txs2, recs2);
-          setTransacoesState(txs2Mig);
-          setRecorrentesState(filtrarRecorrentesMock(recs2Mig));
-          if (config2.categorias?.length) setCategorias(config2.categorias);
-          if (config2.contas?.length) setContas(validarContas(config2.contas));
-          if (Array.isArray(config2.contasInvestimento)) setContasInvestimentoState(config2.contasInvestimento);
-          if ((config2.clientes ?? []).length) setClientesState(normalizeClientes(config2.clientes));
-          if ((config2.statusLancamento ?? []).length) setStatusLancamentoState(config2.statusLancamento);
-        } catch (e) {
-          console.warn('[Sync] pull falhou (PWA):', e?.message || e);
-        }
         registerPushOnClose();
       } finally {
         if (!cancelled) setLoading(false);
