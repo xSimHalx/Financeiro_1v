@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
+    "tauri:dev:cloud": "cross-env TAURI_APP_CLOUD_API_URL=http://82.112.245.75:3001 npm run tauri dev",
     "tauri:build": "tauri build",
+    "tauri:build:cloud": "cross-env TAURI_APP_CLOUD_API_URL=http://82.112.245.75:3001 npm run tauri build",
     "tauri:build:win": "set PATH=%USERPROFILE%\\.rustup\\toolchains\\stable-x86_64-pc-windows-msvc\\bin;%USERPROFILE%\\.cargo\\bin;%PATH% && tauri build"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "@tauri-apps/cli": "^2.0.0",
     "@vitejs/plugin-react": "^4.2.1",
     "archiver": "^7.0.1",
