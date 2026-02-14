@@ -142,7 +142,8 @@ export async function pullFromCloud() {
 
 /**
  * Push para nuvem: envia alterações locais desde lastSyncedAt. POST /sync.
- * Chamado ao fechar o app (pagehide / beforeunload).
+ * Chamado ao fechar o app (pagehide) ou após alterações (debounced).
+ * Usa keepalive: true para permitir o request completar ao fechar a aba.
  */
 export async function pushToCloud() {
   if (isTauri() || !API_URL || !getToken()) return { ok: true, skipped: true };
@@ -154,8 +155,9 @@ export async function pushToCloud() {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+  const fetchOpts = { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true };
   try {
-    const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
+    const res = await fetch(`${API_URL}/sync`, fetchOpts);
     if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
     const now = new Date().toISOString();
     await db.setConfig({ lastSyncedAt: now });

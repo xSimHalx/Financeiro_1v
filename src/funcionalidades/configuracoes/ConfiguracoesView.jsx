@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Cartao, Botao } from '../../componentes/ui';
-import { RotateCcw, Plus, Pencil, Trash2, Download, Wifi, WifiOff } from 'lucide-react';
+import { RotateCcw, Plus, Pencil, Trash2, Download, Wifi, WifiOff, UploadCloud } from 'lucide-react';
 import { useDados } from '../../store/ProviderDados';
 import { useServerStatus } from '../../hooks';
+import { isTauri } from '../../lib/sync';
 import { gerarId } from '../../lib/utils';
 
 function slugFromLabel(label) {
@@ -13,7 +14,7 @@ function slugFromLabel(label) {
  * Configurações: sync, gerenciar categorias, contas, clientes e status de lançamento
  */
 export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
-  const { categorias, contas, setCategorias, setContas, contasInvestimento, setContasInvestimento, clientes, setClientes, statusLancamento, setStatusLancamento } = useDados();
+  const { categorias, contas, setCategorias, setContas, contasInvestimento, setContasInvestimento, clientes, setClientes, statusLancamento, setStatusLancamento, triggerPush } = useDados();
   const [syncStatus, setSyncStatus] = useState('');
   const [erro, setErro] = useState('');
   const [novoCategoria, setNovoCategoria] = useState('');
@@ -180,9 +181,9 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
       <Cartao>
         <h3 className="font-black text-[10px] uppercase tracking-widest text-slate-500 mb-4">Sincronização</h3>
         <p className="text-slate-400 text-sm mb-4">
-          Os dados são guardados no seu dispositivo e copiados para a nuvem ao fechar o app. Ao abrir, o app
-          sincroniza uma vez com a nuvem. Use &quot;Restaurar da nuvem&quot; para substituir os dados locais
-          pelo backup (útil em outro dispositivo ou após perda de dados).
+          Os dados são guardados no seu dispositivo e enviados para a nuvem automaticamente (5 s após alterações)
+          ou ao fechar/trocar de aba. Use &quot;Enviar para nuvem&quot; para forçar o envio agora.
+          &quot;Restaurar da nuvem&quot; substitui os dados locais pelo backup.
         </p>
         <div className="flex flex-wrap gap-3 items-center mb-4">
           <Botao
@@ -205,16 +206,38 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
           {serverStatus === 'erro' && <span className="text-red-400 text-xs font-bold flex items-center gap-1"><WifiOff size={14} /> Desconectado</span>}
         </div>
         {serverMsg && <p className={`text-xs font-bold mb-3 ${serverStatus === 'ok' ? 'text-emerald-400' : 'text-red-400'}`}>{serverMsg}</p>}
-        {aoRestaurarDaNuvem && (
-          <Botao
-            tipo="button"
-            variante="secondary"
-            classeNome="flex items-center gap-2"
-            aoClicar={handleRestaurar}
-          >
-            <RotateCcw size={16} /> Restaurar da nuvem
-          </Botao>
-        )}
+        <div className="flex flex-wrap gap-3">
+          {triggerPush && !isTauri() && (
+            <Botao
+              tipo="button"
+              variante="secondary"
+              classeNome="flex items-center gap-2"
+              aoClicar={async () => {
+                setSyncStatus('Enviando...');
+                setErro('');
+                try {
+                  await triggerPush();
+                  setSyncStatus('Dados enviados para a nuvem.');
+                } catch (e) {
+                  setErro(e?.message || 'Falha ao enviar.');
+                  setSyncStatus('');
+                }
+              }}
+            >
+              <UploadCloud size={16} /> Enviar para nuvem
+            </Botao>
+          )}
+          {aoRestaurarDaNuvem && (
+            <Botao
+              tipo="button"
+              variante="secondary"
+              classeNome="flex items-center gap-2"
+              aoClicar={handleRestaurar}
+            >
+              <RotateCcw size={16} /> Restaurar da nuvem
+            </Botao>
+          )}
+        </div>
         {syncStatus && <p className="mt-3 text-emerald-400 text-xs font-bold">{syncStatus}</p>}
         {erro && <p className="mt-3 text-red-400 text-xs font-bold">{erro}</p>}
       </Cartao>

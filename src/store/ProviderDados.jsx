@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import * as db from '../lib/db';
 import * as auth from '../lib/auth';
-import { pullFromCloud, registerPushOnClose, isTauri } from '../lib/sync';
+import { pullFromCloud, pushToCloud, registerPushOnClose, isTauri } from '../lib/sync';
 import { DEFAULT_CONTAS, getContasFromConfig, validarContas } from '../lib/contas';
 import { normalizeClientes } from '../lib/clientes';
 import { reaisParaCentavos, centavosParaReais } from '../lib/moeda';
@@ -61,6 +61,7 @@ export function ProviderDados({ children }) {
   const [syncError, setSyncError] = useState(null);
   const hydrated = useRef(false);
   const lastPutTransacoesRef = useRef(Promise.resolve());
+  const pushDebounceRef = useRef(null);
 
   const persistTransacoes = useCallback((next) => {
     if (!Array.isArray(next)) return;
@@ -207,6 +208,20 @@ export function ProviderDados({ children }) {
     }
     if (transacoes.length === 0) return;
     persistTransacoes(transacoes);
+    if (auth.getToken()) {
+      if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
+      pushDebounceRef.current = setTimeout(() => {
+        pushDebounceRef.current = null;
+        pushToCloud()
+          .then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
+          .catch((e) => {
+            console.warn('[Sync] push automático falhou:', e?.message || e);
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao enviar');
+          });
+      }, 5000);
+    }
+    return () => { if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current); };
   }, [transacoes, persistTransacoes]);
 
   useEffect(() => {
@@ -218,6 +233,20 @@ export function ProviderDados({ children }) {
     }
     if (recorrentes.length === 0) return;
     persistRecorrentes(recorrentes);
+    if (auth.getToken()) {
+      if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current);
+      pushDebounceRef.current = setTimeout(() => {
+        pushDebounceRef.current = null;
+        pushToCloud()
+          .then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
+          .catch((e) => {
+            console.warn('[Sync] push automático falhou:', e?.message || e);
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao enviar');
+          });
+      }, 5000);
+    }
+    return () => { if (pushDebounceRef.current) clearTimeout(pushDebounceRef.current); };
   }, [recorrentes, persistRecorrentes]);
 
   // Tauri: salva ao perder foco (minimizar/trocar app) para não perder dados ao fechar
@@ -341,7 +370,8 @@ export function ProviderDados({ children }) {
     refreshFromDb,
     syncStatus,
     lastSyncedAt,
-    syncError
+    syncError,
+    triggerPush: () => pushToCloud().then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
   };
 
   return <ContextoDados.Provider value={value}>{children}</ContextoDados.Provider>;
