@@ -63,18 +63,29 @@ export function ProviderDados({ children }) {
   const lastPutTransacoesRef = useRef(Promise.resolve());
 
   const persistTransacoes = useCallback((next) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:persistTransacoes',message:'called',data:{count:next?.length,isArray:Array.isArray(next)},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     if (!Array.isArray(next)) return;
     db.putTransacoes(next)
-      .then(() => auth.getToken() && pushToCloud().catch((e) => console.warn('[Sync] push falhou:', e?.message || e)))
+      .then(() => {
+        if (!auth.getToken()) return;
+        setSyncStatus('syncing');
+        setSyncError(null);
+        pushToCloud()
+          .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+          .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
+      })
       .catch((e) => console.warn('Persist transacoes failed', e));
   }, []);
   const persistRecorrentes = useCallback((next) => {
     if (!Array.isArray(next)) return;
     db.putRecorrentes(next)
-      .then(() => auth.getToken() && pushToCloud().catch((e) => console.warn('[Sync] push falhou:', e?.message || e)))
+      .then(() => {
+        if (!auth.getToken()) return;
+        setSyncStatus('syncing');
+        setSyncError(null);
+        pushToCloud()
+          .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+          .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
+      })
       .catch((e) => console.warn('Persist recorrentes failed', e));
   }, []);
 
@@ -127,9 +138,6 @@ export function ProviderDados({ children }) {
           db.getConfig()
         ]);
         if (cancelled) return;
-        // #region agent log
-        fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:load',message:'IndexedDB loaded',data:{txsCount:txs?.length,recsCount:recs?.length},hypothesisId:'H5',timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         const { txs: txsMig, recs: recsMig } = migrarParaCentavos(txs, recs);
         setTransacoesState(txsMig);
         setRecorrentesState(filtrarRecorrentesMock(recsMig));
@@ -143,21 +151,22 @@ export function ProviderDados({ children }) {
         if (auth.getToken()) {
           setSyncStatus('syncing');
           setSyncError(null);
-          try {
-            await pullFromCloud();
-            if (cancelled) return;
-            const [txs2, recs2, cfg] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes(), db.getConfig()]);
-            if (cancelled) return;
-            const { txs: txsMig2, recs: recsMig2 } = migrarParaCentavos(txs2, recs2);
-            setTransacoesState(txsMig2);
-            setRecorrentesState(filtrarRecorrentesMock(recsMig2));
-            setLastSyncedAt(cfg.lastSyncedAt);
-            setSyncStatus('synced');
-          } catch (e) {
-            console.warn('[Sync] pull falhou (PWA):', e?.message || e);
-            setSyncStatus('error');
-            setSyncError(e?.message || 'Falha ao sincronizar');
-          }
+          pullFromCloud()
+            .then(async () => {
+              if (cancelled) return;
+              const [txs2, recs2, cfg] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes(), db.getConfig()]);
+              if (cancelled) return;
+              const { txs: txsMig2, recs: recsMig2 } = migrarParaCentavos(txs2, recs2);
+              setTransacoesState(txsMig2);
+              setRecorrentesState(filtrarRecorrentesMock(recsMig2));
+              setLastSyncedAt(cfg.lastSyncedAt);
+              setSyncStatus('synced');
+            })
+            .catch((e) => {
+              console.warn('[Sync] pull falhou (PWA):', e?.message || e);
+              setSyncStatus('error');
+              setSyncError(e?.message || 'Falha ao sincronizar');
+            });
         }
         registerPushOnClose({
           onPushStart: () => setSyncStatus('syncing'),
@@ -207,10 +216,7 @@ export function ProviderDados({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!hydrated.current) {
-      fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ProviderDados:useEffect persist',message:'SKIP not hydrated',data:{transacoesLen:transacoes?.length},hypothesisId:'H4',timestamp:Date.now()})}).catch(()=>{});
-      return;
-    }
+    if (!hydrated.current) return;
     if (isTauri()) {
       const invoke = getTauriInvoke();
       if (invoke) {
@@ -357,7 +363,15 @@ export function ProviderDados({ children }) {
     syncStatus,
     lastSyncedAt,
     syncError,
-    triggerPush: () => pushToCloud().then(() => db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt)))
+    setSyncStatus,
+    setSyncError,
+    triggerPush: () => {
+      setSyncStatus('syncing');
+      setSyncError(null);
+      return pushToCloud()
+        .then(() => db.getConfig().then((c) => { setLastSyncedAt(c.lastSyncedAt); setSyncStatus('synced'); }))
+        .catch((e) => { setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); throw e; });
+    }
   };
 
   return <ContextoDados.Provider value={value}>{children}</ContextoDados.Provider>;

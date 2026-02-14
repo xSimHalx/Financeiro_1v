@@ -15,6 +15,7 @@ import { METODOS_PAGAMENTO } from '../lib/constantes';
 import { nomeDoMes } from '../lib/formatadores';
 import { gerarId, addMeses } from '../lib/utils';
 import { restoreFromCloud, pushToCloud } from '../lib/sync';
+import * as auth from '../lib/auth';
 import { reaisParaCentavos, centavosParaReais } from '../lib/moeda';
 import * as db from '../lib/db';
 
@@ -22,7 +23,7 @@ function AppConteudo() {
   const { user } = useAuth();
   const { visualizacaoAtual, visualizacaoContexto, tituloAtual, aoMudarVisualizacao, aoMudarContexto } = useApp();
   const { mesAtual, pickerAberto, aoMudarMes, aoAbrirFecharPicker } = useSeletorMes(null);
-  const { transacoes, setTransacoes, recorrentes, setRecorrentes, categorias: CATEGORIAS, contas: LISTA_CONTAS, contasInvestimento, clientes: LISTA_CLIENTES, setClientes, statusLancamento, loading, excluirDefinitivamente, refreshFromDb } = useDados();
+  const { transacoes, setTransacoes, recorrentes, setRecorrentes, categorias: CATEGORIAS, contas: LISTA_CONTAS, contasInvestimento, clientes: LISTA_CLIENTES, setClientes, statusLancamento, loading, excluirDefinitivamente, refreshFromDb, setSyncStatus, setSyncError } = useDados();
   const [termoBusca, setTermoBusca] = useState('');
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
   const [notificacoesAberto, setNotificacoesAberto] = useState(false);
@@ -163,9 +164,6 @@ function AppConteudo() {
       const next = transacaoEditando
         ? transacoes.map((t) => (t.id === transacaoEditando.id ? payload : t))
         : [payload, ...transacoes];
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:handleSalvar',message:'BEFORE putTransacoes',data:{count:next.length,ids:next.map(t=>t.id)},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       try {
         await db.putTransacoes(next);
       } catch (e) {
@@ -173,11 +171,14 @@ function AppConteudo() {
         window.alert('Erro ao salvar. Tente novamente.');
         return;
       }
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/056378c2-918b-4829-95ff-935ea09984ca',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.jsx:handleSalvar',message:'AFTER putTransacoes OK',data:{count:next.length},hypothesisId:'H1',timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       setTransacoes(next);
-      pushToCloud().catch((e) => console.warn('[Sync] push imediato falhou:', e?.message || e));
+      if (auth.getToken()) {
+        setSyncStatus('syncing');
+        setSyncError(null);
+        pushToCloud()
+          .then(() => db.getConfig().then((c) => setSyncStatus('synced')))
+          .catch((e) => { console.warn('[Sync] push imediato falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
+      }
       setTransacaoEditando(null);
       setModalLancamentoAberto(false);
       const isNew = !transacaoEditando;
