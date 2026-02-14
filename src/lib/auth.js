@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://interested-accessories-recognition-elections.trycloudflare.com').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://publishers-hip-performance-flex.trycloudflare.com').replace(/\/$/, '');
 const TOKEN_KEY = 'vertexads_token';
 
 export function getToken() {
