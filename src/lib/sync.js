@@ -81,6 +81,12 @@ async function applySyncData(data, now) {
     ]);
     const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
     const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+
+    // SALVAGUARDA: Se tínhamos dados locais e o merge resultou em zero, algo deu errado.
+    // Aborta para não perder dados (ex: servidor retornou vazio indevidamente).
+    if (localTxs.length > 0 && mergedTxs.length === 0) throw new Error('Sync Aborted: Potential data loss detected in Transacoes.');
+    if (localRecs.length > 0 && mergedRecs.length === 0) throw new Error('Sync Aborted: Potential data loss detected in Recorrentes.');
+
     await dexie.transacoes.clear();
     if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
     await dexie.recorrentes.clear();
@@ -112,6 +118,11 @@ async function applySyncDataIncremental(incoming, now) {
     ]);
     const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
     const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+
+    // SALVAGUARDA INCREMENTAL
+    if (localTxs.length > 0 && mergedTxs.length === 0) throw new Error('Sync Incr Aborted: Potential data loss in Transacoes.');
+    if (localRecs.length > 0 && mergedRecs.length === 0) throw new Error('Sync Incr Aborted: Potential data loss in Recorrentes.');
+
     await dexie.transacoes.clear();
     if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
     await dexie.recorrentes.clear();

@@ -10,6 +10,7 @@ import * as usuariosRepo from './repos/usuariosRepo.js';
 import authRoutes from './routes/auth.js';
 import syncRoutes from './routes/sync.js';
 import errorsRoutes from './routes/errors.js';
+import authMiddleware from './middlewares/auth.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vertexads-dev-secret-change-in-production';
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
@@ -61,7 +62,7 @@ app.use('/auth/register', limiterAuth);
 app.use('/auth', authRoutes);
 
 app.use('/sync', limiterSync);
-app.use('/sync', syncRoutes);
+app.use('/sync', authMiddleware, syncRoutes);
 
 app.use('/api', errorsRoutes);
 
