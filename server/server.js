@@ -29,17 +29,43 @@ usuariosRepo.ensureAdminSeed('admin@vertexads.com', hashAdmin);
 
 const app = express();
 
+// Necessário atrás de proxy (Cloudflare Tunnel, nginx, etc.) para X-Forwarded-For
+app.set('trust proxy', 1);
+
+const defaultOrigins = [
+  'https://gestorfinanceirosimhal.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
+];
 const corsOrigins = CORS_ORIGIN
-  ? CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean)
-  : [];
-const corsOptions = corsOrigins.length
-  ? { origin: corsOrigins, credentials: true }
-  : { origin: true, credentials: true };
+  ? [...new Set([...CORS_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean), ...defaultOrigins])]
+  : defaultOrigins;
+const corsOptions = { origin: corsOrigins, credentials: true };
 app.use(cors(corsOptions));
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '2mb' }));
 
-const limiterAuth = rateLimit({
+function safeRateLimit(options) {
+  const limiter = rateLimit(options);
+  return (req, res, next) => {
+    try {
+      limiter(req, res, (err) => {
+        if (err) {
+          console.warn('[rate-limit] Erro (requisição prossegue):', err?.message || err);
+          return next();
+        }
+        next();
+      });
+    } catch (e) {
+      console.warn('[rate-limit] Erro (requisição prossegue):', e?.message || e);
+      next();
+    }
+  };
+}
+
+const limiterAuth = safeRateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: RATE_LIMIT_MAX_AUTH,
   message: { error: 'Muitas tentativas. Tente novamente mais tarde.' },
@@ -47,7 +73,7 @@ const limiterAuth = rateLimit({
   legacyHeaders: false
 });
 
-const limiterSync = rateLimit({
+const limiterSync = safeRateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: RATE_LIMIT_MAX_SYNC,
   message: { error: 'Limite de requisições excedido. Tente novamente mais tarde.' },

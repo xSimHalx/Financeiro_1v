@@ -137,6 +137,7 @@ export default function Login() {
                         </div>
                         <input
                           type="email"
+                          autoComplete="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2.5 sm:py-3 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"
@@ -153,6 +154,7 @@ export default function Login() {
                         </div>
                         <input
                           type="password"
+                          autoComplete="current-password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2.5 sm:py-3 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"
@@ -240,6 +242,7 @@ export default function Login() {
                         </div>
                         <input
                           type="text"
+                          autoComplete="name"
                           value={name}
                           onChange={(e) => setName(e.target.value)}
                           className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"
@@ -255,6 +258,7 @@ export default function Login() {
                         </div>
                         <input
                           type="email"
+                          autoComplete="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"
@@ -272,6 +276,7 @@ export default function Login() {
                           </div>
                           <input
                             type="password"
+                            autoComplete="new-password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"
@@ -291,6 +296,7 @@ export default function Login() {
                           </div>
                           <input
                             type="password"
+                            autoComplete="new-password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             className="w-full bg-slate-950/50 border border-slate-700/50 rounded-xl py-2 pl-10 pr-3 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 focus:bg-slate-950 transition-all"

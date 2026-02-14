@@ -56,11 +56,16 @@ async function fetchWithRetry(url, options, { maxRetries = RETRY_MAX, baseDelayM
  */
 function mergeByUpdatedAt(existing, incoming) {
   const byId = new Map(existing.map((t) => [t.id, t]));
+  // Normaliza IDs para string para evitar duplicatas (ex: 1 vs "1")
+  const byId = new Map(existing.map((t) => [String(t.id), t]));
   for (const t of incoming) {
     const cur = byId.get(t.id);
+    const idStr = String(t.id);
+    const cur = byId.get(idStr);
     const tAt = t.updatedAt || '';
     const curAt = cur?.updatedAt || '';
     if (!cur || (tAt && curAt && tAt > curAt)) byId.set(t.id, t);
+    if (!cur || (tAt && curAt && tAt > curAt)) byId.set(idStr, t);
   }
   return Array.from(byId.values());
 }
@@ -147,6 +152,7 @@ export async function pullFromCloud() {
   const pending = await db.getPendingPush();
   if (pending && token) {
     const pushHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    console.log('[Sync] Tentando enviar push pendente...');
     const pushRes = await fetch(`${API_URL}/sync`, { method: 'POST', headers: pushHeaders, body: JSON.stringify(pending), cache: 'no-store' });
     if (!pushRes.ok) {
       if (pushRes.status === 401 || pushRes.status === 403) {
@@ -193,12 +199,17 @@ export async function pushToCloud() {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
   const token = getToken();
   if (!token) return { ok: true, skipped: true };
+  if (!token) {
+    console.warn('[Sync] Push ignorado: Usuário não autenticado.');
+    return { ok: true, skipped: true };
+  }
   const config = await db.getConfig();
   const transacoes = await db.getAllTransacoes(true);
   const recorrentes = await db.getAllRecorrentes();
   const body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
   try {
+    console.log(`[Sync] Enviando ${transacoes.length} transações para a nuvem...`);
     const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) console.warn('[Sync] push 401/403 – token inválido.');
@@ -208,8 +219,10 @@ export async function pushToCloud() {
     }
     await db.setConfig({ lastSyncedAt: new Date().toISOString() });
     await db.clearPendingPush();
+    console.log('[Sync] Push concluído com sucesso.');
     return { ok: true };
   } catch (e) {
+    console.error('[Sync] Erro de rede ao enviar:', e);
     await db.setPendingPush(body);
     throw e;
   }
