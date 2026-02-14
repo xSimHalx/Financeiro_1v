@@ -80,7 +80,8 @@ const CONFIG_KEYS = {
   contasInvestimento: 'contasInvestimento',
   clientes: 'clientes',
   statusLancamento: 'statusLancamento',
-  lastSyncedAt: 'lastSyncedAt'
+  lastSyncedAt: 'lastSyncedAt',
+  pendingPush: 'pendingPush'
 };
 
 const DEFAULT_STATUS_LANCAMENTO = [
@@ -119,7 +120,24 @@ export async function setConfig(updates) {
   if (updates.clientes != null) await db.config.put({ key: CONFIG_KEYS.clientes, value: updates.clientes, updatedAt });
   if (updates.statusLancamento != null) await db.config.put({ key: CONFIG_KEYS.statusLancamento, value: updates.statusLancamento, updatedAt });
   if (updates.lastSyncedAt != null) await db.config.put({ key: CONFIG_KEYS.lastSyncedAt, value: updates.lastSyncedAt, updatedAt });
+  if (updates.pendingPush != null) await db.config.put({ key: CONFIG_KEYS.pendingPush, value: updates.pendingPush, updatedAt });
   return updatedAt;
+}
+
+/** Retorna payload de push pendente (quando push falhou). */
+export async function getPendingPush() {
+  const row = await db.config.get(CONFIG_KEYS.pendingPush);
+  return row?.value ?? null;
+}
+
+/** Salva payload para retry do push. */
+export async function setPendingPush(payload) {
+  await db.config.put({ key: CONFIG_KEYS.pendingPush, value: payload, updatedAt: new Date().toISOString() });
+}
+
+/** Remove payload pendente após push bem-sucedido. */
+export async function clearPendingPush() {
+  await db.config.delete(CONFIG_KEYS.pendingPush);
 }
 
 /**

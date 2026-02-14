@@ -56,6 +56,9 @@ export function ProviderDados({ children }) {
   const [clientes, setClientesState] = useState([]);
   const [statusLancamento, setStatusLancamentoState] = useState(DEFAULT_STATUS_LANCAMENTO);
   const [loading, setLoading] = useState(true);
+  const [syncStatus, setSyncStatus] = useState('idle');
+  const [lastSyncedAt, setLastSyncedAt] = useState(null);
+  const [syncError, setSyncError] = useState(null);
   const hydrated = useRef(false);
   const lastPutTransacoesRef = useRef(Promise.resolve());
 
@@ -113,10 +116,18 @@ export function ProviderDados({ children }) {
       try {
         // Se tem token, puxa da nuvem PRIMEIRO para garantir dados atuais ao entrar na conta
         if (auth.getToken()) {
+          setSyncStatus('syncing');
+          setSyncError(null);
           try {
             await pullFromCloud();
+            if (cancelled) return;
+            const cfg = await db.getConfig();
+            setLastSyncedAt(cfg.lastSyncedAt);
+            setSyncStatus('synced');
           } catch (e) {
             console.warn('[Sync] pull falhou (PWA):', e?.message || e);
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao sincronizar');
           }
           if (cancelled) return;
         }
@@ -135,12 +146,52 @@ export function ProviderDados({ children }) {
         setClientesState(normalizeClientes(config.clientes || []));
         setStatusLancamentoState((config.statusLancamento ?? []).length ? config.statusLancamento : DEFAULT_STATUS_LANCAMENTO);
         hydrated.current = true;
-        registerPushOnClose();
+        setLastSyncedAt(config.lastSyncedAt);
+        registerPushOnClose({
+          onPushStart: () => setSyncStatus('syncing'),
+          onPushEnd: () => {
+            setSyncStatus('synced');
+            db.getConfig().then((c) => setLastSyncedAt(c.lastSyncedAt));
+          },
+          onPushError: (e) => {
+            setSyncStatus('error');
+            setSyncError(e?.message || 'Falha ao enviar');
+          },
+          onVisibilityVisible: async () => {
+            if (!auth.getToken()) return;
+            setSyncStatus('syncing');
+            setSyncError(null);
+            try {
+              await pullFromCloud();
+              await refreshFromDb();
+              const cfg = await db.getConfig();
+              setLastSyncedAt(cfg.lastSyncedAt);
+              setSyncStatus('synced');
+            } catch (e) {
+              console.warn('[Sync] pull ao voltar falhou:', e?.message || e);
+              setSyncStatus('error');
+              setSyncError(e?.message || 'Falha ao sincronizar');
+            }
+          }
+        });
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (isTauri()) return;
+    const onOnline = () => setSyncStatus((s) => (s === 'offline' ? 'idle' : s));
+    const onOffline = () => setSyncStatus('offline');
+    window.addEventListener('online', onOnline);
+    window.addEventListener('offline', onOffline);
+    if (!navigator.onLine) setSyncStatus('offline');
+    return () => {
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('offline', onOffline);
+    };
   }, []);
 
   useEffect(() => {
@@ -287,7 +338,10 @@ export function ProviderDados({ children }) {
     },
     loading,
     excluirDefinitivamente,
-    refreshFromDb
+    refreshFromDb,
+    syncStatus,
+    lastSyncedAt,
+    syncError
   };
 
   return <ContextoDados.Provider value={value}>{children}</ContextoDados.Provider>;

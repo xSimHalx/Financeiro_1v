@@ -1,6 +1,7 @@
 import React from 'react';
 import { Menu, Bell, Plus, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CONTEXTOS } from '../../lib';
+import { IndicadorSync } from '../compartilhados/IndicadorSync';
 import { nomeDoMes, anoDeAnoMes, formatarMoeda } from '../../lib/formatadores';
 import { MESES_ABREVIADOS, formatarAnoMes } from '../../lib/utils';
 
@@ -129,6 +130,7 @@ export function Cabecalho({
         </div>
       </div>
       <div className="flex items-center gap-4">
+        <IndicadorSync />
         <div className="relative">
           <button
             type="button"

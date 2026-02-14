@@ -50,6 +50,12 @@ export function getSnapshot(userId, since = '') {
   };
 }
 
+/**
+ * Merge por updatedAt: last-write-wins.
+ * Resolução de conflitos: quando o mesmo item existe em múltiplos devices,
+ * a versão com updatedAt mais recente prevalece.
+ * O cliente deve garantir que transacoes e recorrentes tenham updatedAt antes do push.
+ */
 function mergeByUpdatedAt(existing, incoming) {
   const byId = new Map(existing.map((t) => [t.id, t]));
   for (const t of incoming) {
@@ -84,6 +90,18 @@ export function saveSnapshot(userId, { transacoes = [], recorrentes = [], config
   db.prepare(
     'INSERT INTO snapshots (user_id, updated_at, payload_json, created_at) VALUES (?, ?, ?, ?)'
   ).run(userId, updatedAt, JSON.stringify(payload), updatedAt);
+
+  const SNAPSHOTS_TO_KEEP = 10;
+  const kept = db.prepare(
+    'SELECT id FROM snapshots WHERE user_id = ? ORDER BY updated_at DESC LIMIT ?'
+  ).all(userId, SNAPSHOTS_TO_KEEP);
+  if (kept.length >= SNAPSHOTS_TO_KEEP) {
+    const ids = kept.map((r) => r.id);
+    const placeholders = ids.map(() => '?').join(',');
+    db.prepare(
+      `DELETE FROM snapshots WHERE user_id = ? AND id NOT IN (${placeholders})`
+    ).run(userId, ...ids);
+  }
 
   db.prepare(
     `INSERT INTO meta (user_id, last_synced_at, device_id, schema_version)

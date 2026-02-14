@@ -2,6 +2,10 @@ import * as db from './db.js';
 import { getToken } from './auth.js';
 
 const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://cold-layout-attribute-improvements.trycloudflare.com').replace(/\/$/, '');
+const FETCH_TIMEOUT_MS = 15_000;
+const RETRY_MAX = 2;
+const RETRY_BASE_DELAY_MS = 1000;
+const INCREMENTAL_SYNC_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24h
 
 /**
  * Retorna true se estamos no Tauri (sync é feito pelo Rust)
@@ -10,21 +14,59 @@ export function isTauri() {
   return typeof window !== 'undefined' && (window.__TAURI_INTERNALS__ != null || window.__TAURI__ != null);
 }
 
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 /**
- * Pull da nuvem: GET /sync (snapshot completo). Substitui dados locais.
- * Chamado ao abrir o app (uma vez). Sempre busca snapshot completo para evitar perda de dados.
+ * Fetch com timeout. Aborta após timeoutMs.
  */
-export async function pullFromCloud() {
-  if (isTauri() || !API_URL) return { ok: true, skipped: true };
-  const url = `${API_URL}/sync`;
-  const headers = { Accept: 'application/json' };
-  const token = getToken();
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
-  if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
-  const data = await res.json();
-  const now = new Date().toISOString();
-  // Não limpar dados locais quando o servidor retorna vazio (ex: usuário novo sem snapshot)
+async function fetchWithTimeout(url, options, timeoutMs = FETCH_TIMEOUT_MS) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: ctrl.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/**
+ * Fetch com retry e timeout. Retenta em falha de rede ou 5xx.
+ */
+async function fetchWithRetry(url, options, { maxRetries = RETRY_MAX, baseDelayMs = RETRY_BASE_DELAY_MS } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetchWithTimeout(url, options);
+      if (res.ok || res.status < 500) return res;
+      lastErr = new Error(`Sync failed: ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (attempt < maxRetries) await sleep(baseDelayMs * (attempt + 1));
+  }
+  throw lastErr;
+}
+
+/**
+ * Merge por updatedAt (last-write-wins). Usado no sync incremental.
+ * O cliente garante updatedAt em putTransacoes/putRecorrentes antes do push.
+ */
+function mergeByUpdatedAt(existing, incoming) {
+  const byId = new Map(existing.map((t) => [t.id, t]));
+  for (const t of incoming) {
+    const cur = byId.get(t.id);
+    if (!cur || (t.updatedAt && cur.updatedAt && t.updatedAt > cur.updatedAt)) byId.set(t.id, t);
+  }
+  return Array.from(byId.values());
+}
+
+/**
+ * Aplica dados de sync no IndexedDB. Não limpa quando servidor retorna vazio.
+ */
+async function applySyncData(data, now) {
   if (Array.isArray(data.transacoes) && data.transacoes.length > 0) {
     await db.db.transacoes.clear();
     await db.putTransacoes(data.transacoes);
@@ -41,6 +83,57 @@ export async function pullFromCloud() {
     if ((data.config.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: data.config.statusLancamento });
   }
   await db.setConfig({ lastSyncedAt: now });
+}
+
+/**
+ * Aplica dados incrementais: mescla com locais por updatedAt (last-write-wins).
+ */
+async function applySyncDataIncremental(incoming, now) {
+  const [localTxs, localRecs] = await Promise.all([db.getAllTransacoes(true), db.getAllRecorrentes()]);
+  const mergedTxs = mergeByUpdatedAt(localTxs, incoming.transacoes || []);
+  const mergedRecs = mergeByUpdatedAt(localRecs, incoming.recorrentes || []);
+  await db.db.transacoes.clear();
+  await db.putTransacoes(mergedTxs);
+  await db.db.recorrentes.clear();
+  await db.putRecorrentes(mergedRecs);
+  if (incoming.config?.categorias?.length) await db.setConfig({ categorias: incoming.config.categorias });
+  if (incoming.config?.contas?.length) await db.setConfig({ contas: incoming.config.contas });
+  if (Array.isArray(incoming.config?.contasInvestimento)) await db.setConfig({ contasInvestimento: incoming.config.contasInvestimento });
+  if (Array.isArray(incoming.config?.clientes)) await db.setConfig({ clientes: incoming.config.clientes });
+  if ((incoming.config?.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: incoming.config.statusLancamento });
+  await db.setConfig({ lastSyncedAt: now });
+}
+
+/**
+ * Pull da nuvem: GET /sync. Usa snapshot completo ou incremental conforme lastSyncedAt.
+ */
+export async function pullFromCloud() {
+  if (isTauri() || !API_URL) return { ok: true, skipped: true };
+  const config = await db.getConfig();
+  const since = config.lastSyncedAt || '';
+  const useIncremental = since && (Date.now() - new Date(since).getTime() < INCREMENTAL_SYNC_MAX_AGE_MS);
+  const url = useIncremental ? `${API_URL}/sync?since=${encodeURIComponent(since)}` : `${API_URL}/sync`;
+  const headers = { Accept: 'application/json' };
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetchWithRetry(url, { method: 'GET', headers, cache: 'no-store' });
+  if (!res.ok) throw new Error(`Sync pull failed: ${res.status}`);
+  const data = await res.json();
+  const now = new Date().toISOString();
+  if (useIncremental && (data.transacoes?.length || data.recorrentes?.length || data.config)) {
+    await applySyncDataIncremental(data, now);
+  } else {
+    await applySyncData(data, now);
+  }
+  const pending = await db.getPendingPush();
+  if (pending && getToken()) {
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
+    const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(pending), cache: 'no-store' });
+    if (res.ok) {
+      await db.setConfig({ lastSyncedAt: new Date().toISOString() });
+      await db.clearPendingPush();
+    }
+  }
   if (data.transacoes?.length || data.recorrentes?.length) {
     console.log('[Sync] pull OK –', data.transacoes?.length || 0, 'transações,', data.recorrentes?.length || 0, 'recorrências');
   }
@@ -52,7 +145,7 @@ export async function pullFromCloud() {
  * Chamado ao fechar o app (pagehide / beforeunload).
  */
 export async function pushToCloud() {
-  if (isTauri() || !API_URL || !navigator.onLine) return { ok: true, skipped: true };
+  if (isTauri() || !API_URL || !getToken()) return { ok: true, skipped: true };
   const config = await db.getConfig();
   const since = config.lastSyncedAt || null;
   const transacoes = await db.getTransacoesSince(since);
@@ -61,11 +154,17 @@ export async function pushToCloud() {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
-  if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
-  const now = new Date().toISOString();
-  await db.setConfig({ lastSyncedAt: now });
-  return { ok: true };
+  try {
+    const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store' });
+    if (!res.ok) throw new Error(`Sync push failed: ${res.status}`);
+    const now = new Date().toISOString();
+    await db.setConfig({ lastSyncedAt: now });
+    await db.clearPendingPush();
+    return { ok: true };
+  } catch (e) {
+    await db.setPendingPush(body);
+    throw e;
+  }
 }
 
 /**
@@ -77,38 +176,43 @@ export async function restoreFromCloud() {
   const headers = { Accept: 'application/json' };
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_URL}/sync`, { method: 'GET', headers, cache: 'no-store' });
+  const res = await fetchWithRetry(`${API_URL}/sync`, { method: 'GET', headers, cache: 'no-store' });
   if (!res.ok) throw new Error(`Restore failed: ${res.status}`);
   const data = await res.json();
-  if (data.transacoes?.length) {
-    await db.db.transacoes.clear();
-    await db.putTransacoes(data.transacoes);
-  }
-  if (data.recorrentes?.length) {
-    await db.db.recorrentes.clear();
-    await db.putRecorrentes(data.recorrentes);
-  }
-  if (data.config?.categorias?.length) await db.setConfig({ categorias: data.config.categorias });
-  if (data.config?.contas?.length) await db.setConfig({ contas: data.config.contas });
-  if (Array.isArray(data.config?.contasInvestimento)) await db.setConfig({ contasInvestimento: data.config.contasInvestimento });
-  if (Array.isArray(data.config?.clientes)) await db.setConfig({ clientes: data.config.clientes });
-  if ((data.config?.statusLancamento ?? []).length) await db.setConfig({ statusLancamento: data.config.statusLancamento });
-  await db.setConfig({ lastSyncedAt: new Date().toISOString() });
+  await applySyncData(data, new Date().toISOString());
   return { ok: true };
 }
 
+const SYNC_ON_VISIBLE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+
 /**
- * Registra push ao fechar a aba/app (pagehide).
- * Pull é chamado explicitamente ao montar a app (no provider de dados).
+ * Registra push ao fechar a aba/app (pagehide) e pull ao voltar (visibility visible).
+ * @param {{ onPushStart?: () => void, onPushEnd?: () => void, onPushError?: (e: Error) => void, onVisibilityVisible?: () => Promise<void> }} callbacks
  */
-export function registerPushOnClose() {
+export function registerPushOnClose(callbacks = {}) {
   if (isTauri()) return;
+  const { onPushStart, onPushEnd, onPushError, onVisibilityVisible } = callbacks;
   const onClose = () => {
-    if (!navigator.onLine || !API_URL) return;
-    pushToCloud().catch((e) => console.warn('Sync push on close failed', e));
+    if (!API_URL) return;
+    onPushStart?.();
+    pushToCloud()
+      .then(() => onPushEnd?.())
+      .catch((e) => {
+        console.warn('Sync push on close failed', e);
+        onPushError?.(e);
+      });
+  };
+  const onVisible = async () => {
+    if (document.visibilityState !== 'visible' || !onVisibilityVisible) return;
+    const config = await db.getConfig();
+    const last = config.lastSyncedAt ? new Date(config.lastSyncedAt).getTime() : 0;
+    if (Date.now() - last > SYNC_ON_VISIBLE_INTERVAL_MS) {
+      onVisibilityVisible();
+    }
   };
   window.addEventListener('pagehide', onClose);
   window.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') onClose();
+    else onVisible();
   });
 }
