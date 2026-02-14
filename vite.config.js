@@ -52,6 +52,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
+        cacheId: 'vertexads-sync-v2',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           // Sync e auth: sempre usar rede (NetworkOnly) - nunca cachear para evitar dados desatualizados

@@ -237,6 +237,24 @@ export function ConfiguracoesView({ aoRestaurarDaNuvem }) {
               <RotateCcw size={16} /> Restaurar da nuvem
             </Botao>
           )}
+          {!isTauri() && 'serviceWorker' in navigator && (
+            <Botao
+              tipo="button"
+              variante="secondary"
+              classeNome="flex items-center gap-2"
+              aoClicar={async () => {
+                if (!window.confirm('Isso vai recarregar o app para corrigir problemas de sincronização. Continuar?')) return;
+                try {
+                  const reg = await navigator.serviceWorker.getRegistration();
+                  if (reg?.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                  await navigator.serviceWorker.getRegistrations().then((r) => r.forEach((x) => x.unregister()));
+                } catch (_) {}
+                window.location.reload();
+              }}
+            >
+              Corrigir sync (recarregar)
+            </Botao>
+          )}
         </div>
         {syncStatus && <p className="mt-3 text-emerald-400 text-xs font-bold">{syncStatus}</p>}
         {erro && <p className="mt-3 text-red-400 text-xs font-bold">{erro}</p>}
