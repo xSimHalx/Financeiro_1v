@@ -1,4 +1,4 @@
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || '').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://cold-layout-attribute-improvements.trycloudflare.com').replace(/\/$/, '');
 const TOKEN_KEY = 'vertexads_token';
 
 export function getToken() {

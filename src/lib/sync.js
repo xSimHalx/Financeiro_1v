@@ -1,7 +1,7 @@
 import * as db from './db.js';
 import { getToken } from './auth.js';
 
-const API_URL = (import.meta.env.VITE_CLOUD_API_URL || '').replace(/\/$/, '');
+const API_URL = (import.meta.env.VITE_CLOUD_API_URL || 'https://cold-layout-attribute-improvements.trycloudflare.com').replace(/\/$/, '');
 
 /**
  * Retorna true se estamos no Tauri (sync é feito pelo Rust)
