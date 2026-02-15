@@ -293,13 +293,11 @@ function AppConteudo() {
 
       try {
         await db.putRecorrencia(rec);
-        // Otimização: Atualiza estado local imediatamente sem esperar refresh do DB
         setRecorrentes((prev) => {
           const existe = prev.some((r) => r.id === rec.id);
           if (existe) return prev.map((r) => (r.id === rec.id ? rec : r));
           return [rec, ...prev];
         });
-        // Dispara sync em background (fire and forget)
         if (auth.getToken()) pushToCloud().catch(console.error);
       } catch (e) {
         console.error('Erro ao salvar recorrência:', e);

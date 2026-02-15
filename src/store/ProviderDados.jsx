@@ -83,7 +83,7 @@ export function ProviderDados({ children }) {
         if (!auth.getToken()) return;
         setSyncStatus('syncing');
         setSyncError(null);
-        pushToCloud({ transacoes: next })
+        pushToCloud({ transacoes: next, recorrentes })
           .then((r) => {
             if (r?.ok === false) {
               setSyncStatus('error');
@@ -95,7 +95,7 @@ export function ProviderDados({ children }) {
           .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
       })
       .catch((e) => console.warn('Persist transacoes failed', e));
-  }, []);
+  }, [recorrentes]);
   const persistRecorrentes = useCallback((next) => {
     if (!Array.isArray(next)) return;
     db.putRecorrentes(next)
