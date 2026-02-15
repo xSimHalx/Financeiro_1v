@@ -305,12 +305,14 @@ export function ProviderDados({ children }) {
   const setTransacoes = useCallback((updaterOrValue) => {
     setTransacoesState((prev) => {
       const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
+      stateForPushRef.current = { ...stateForPushRef.current, transacoes: next };
       return next;
     });
   }, []);
   const setRecorrentes = useCallback((updaterOrValue) => {
     setRecorrentesState((prev) => {
       const next = typeof updaterOrValue === 'function' ? updaterOrValue(prev) : updaterOrValue;
+      stateForPushRef.current = { ...stateForPushRef.current, recorrentes: next };
       return next;
     });
   }, []);
