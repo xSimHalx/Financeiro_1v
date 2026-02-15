@@ -83,7 +83,7 @@ export function ProviderDados({ children }) {
         if (!auth.getToken()) return;
         setSyncStatus('syncing');
         setSyncError(null);
-        pushToCloud()
+        pushToCloud({ transacoes: next })
           .then((r) => {
             if (r?.ok === false) {
               setSyncStatus('error');
@@ -103,7 +103,7 @@ export function ProviderDados({ children }) {
         if (!auth.getToken()) return;
         setSyncStatus('syncing');
         setSyncError(null);
-        pushToCloud()
+        pushToCloud({ recorrentes: next })
           .then((r) => {
             if (r?.ok === false) {
               setSyncStatus('error');

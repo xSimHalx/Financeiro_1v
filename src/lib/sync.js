@@ -195,8 +195,9 @@ const SYNC_DEBOUNCE_MS = 2500;
 /**
  * Push para nuvem: POST /sync. Sem token retorna skipped; 4xx/5xx retorna ok:false sem alterar lastSyncedAt.
  * Anti-duplicação: evita 2+ chamadas simultâneas ou em sequência rápida (ex: pagehide + visibilitychange).
+ * @param {{ recorrentes?: unknown[], transacoes?: unknown[] }} override - usa estes em vez de ler do IndexedDB (evita race)
  */
-export async function pushToCloud() {
+export async function pushToCloud(override = {}) {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
   const token = getToken();
   if (!token) return { ok: true, skipped: true };
@@ -217,8 +218,8 @@ export async function pushToCloud() {
   let body = null;
   try {
     const config = await db.getConfig();
-    const transacoes = await db.getAllTransacoes(true);
-    const recorrentes = await db.getAllRecorrentes();
+    const transacoes = override.transacoes != null ? override.transacoes : await db.getAllTransacoes(true);
+    const recorrentes = override.recorrentes != null ? override.recorrentes : await db.getAllRecorrentes();
     body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
     const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     console.log('[Sync] iniciando push. pendentes:', transacoes.length, 'transações,', recorrentes?.length || 0, 'recorrências');
