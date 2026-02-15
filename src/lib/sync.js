@@ -203,11 +203,12 @@ export async function pushToCloud(override = {}) {
   if (!token) return { ok: true, skipped: true };
 
   const agora = Date.now();
+  const temOverride = override.recorrentes != null || override.transacoes != null;
   if (_syncPushEmAndamento) {
     console.log('[Sync] push ignorado: já em andamento');
     return { ok: true, skipped: true };
   }
-  if (agora - _ultimoSyncPushEmMs < SYNC_DEBOUNCE_MS) {
+  if (!temOverride && agora - _ultimoSyncPushEmMs < SYNC_DEBOUNCE_MS) {
     console.log('[Sync] push ignorado: debounce (evita duplicata)');
     return { ok: true, skipped: true };
   }

@@ -267,13 +267,14 @@ function AppConteudo() {
   }, [CATEGORIAS, LISTA_CONTAS]);
 
   const handleSalvarRecorrencia = useCallback(
-    (form) => {
+    async (form) => {
       const recorrente = form.recorrente !== false;
       const quantidadeMeses = recorrente ? null : (form.quantidadeMeses != null && form.quantidadeMeses !== '' ? parseInt(form.quantidadeMeses, 10) : null);
       const ehAnual = form.frequencia === 'anual';
       const dataInicio = ehAnual || (!recorrente && quantidadeMeses) ? (form.dataInicio || new Date().toISOString().slice(0, 7)) : null;
       const rec = {
         id: gerarId('rec'),
+        id: form.id || gerarId('rec'),
         titulo: String(form.titulo || '').trim(),
         valor: reaisParaCentavos(form.valor),
         tipo: form.tipo || 'saida',
@@ -289,6 +290,22 @@ function AppConteudo() {
         ativo: true
       };
       setRecorrentes((prev) => [rec, ...prev]);
+
+      try {
+        await db.putRecorrencia(rec);
+        // Otimização: Atualiza estado local imediatamente sem esperar refresh do DB
+        setRecorrentes((prev) => {
+          const existe = prev.some((r) => r.id === rec.id);
+          if (existe) return prev.map((r) => (r.id === rec.id ? rec : r));
+          return [rec, ...prev];
+        });
+        // Dispara sync em background (fire and forget)
+        if (auth.getToken()) pushToCloud().catch(console.error);
+      } catch (e) {
+        console.error('Erro ao salvar recorrência:', e);
+        alert('Erro ao salvar recorrência.');
+      }
+
       setModalRecorrenciaAberto(false);
       setFormRecorrencia(null);
     },
@@ -344,7 +361,17 @@ function AppConteudo() {
           nomeDoMes={mesAtual ? nomeDoMes(mesAtual) : 'Todos'}
           feedbackProjetar={feedbackProjetar}
           aoAbrirModalRecorrencia={abrirModalRecorrencia}
-          aoRemoverRecorrencia={(id) => setRecorrentes((prev) => prev.filter((r) => r.id !== id))}
+          aoRemoverRecorrencia={async (id) => {
+            try {
+              const filtrado = recorrentes.filter((r) => r.id !== id);
+              await db.deleteRecorrencia(id);
+              setRecorrentes(filtrado);
+              if (auth.getToken()) pushToCloud({ recorrentes: filtrado }).catch(console.error);
+            } catch (e) {
+              console.error('Erro ao excluir recorrência:', e);
+              alert('Não foi possível excluir a recorrência.');
+            }
+          }}
           saldosPorConta={saldosPorConta}
           saldosPorContaPessoal={saldosPorContaPessoal}
           saldosInvestimento={saldosInvestimento}
