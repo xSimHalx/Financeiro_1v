@@ -10,7 +10,7 @@ import * as usuariosRepo from './repos/usuariosRepo.js';
 import authRoutes from './routes/auth.js';
 import syncRoutes from './routes/sync.js';
 import errorsRoutes from './routes/errors.js';
-import authMiddleware from './middlewares/auth.js';
+import { authMiddleware } from './middlewares/auth.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'vertexads-dev-secret-change-in-production';
 const CORS_ORIGIN = process.env.CORS_ORIGIN;
