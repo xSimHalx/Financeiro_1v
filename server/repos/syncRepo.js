@@ -41,7 +41,7 @@ export function getSnapshot(userId, since = '') {
   let recorrentes = payload.recorrentes || [];
   if (since) {
     transacoes = transacoes.filter((t) => t.updatedAt && t.updatedAt >= since);
-    recorrentes = recorrentes.filter((r) => r.updatedAt && r.updatedAt >= since);
+    // Recorrentes: sempre retorna a lista completa. Filtro por since perderia exclusões.
   }
   return {
     transacoes,
@@ -66,14 +66,15 @@ function mergeByUpdatedAt(existing, incoming) {
 }
 
 /**
- * Salva snapshot fazendo merge com o existente (compatível com frontend que envia incremental).
+ * Salva snapshot. Transações: merge (last-write-wins). Recorrentes: substitui pela lista enviada
+ * (o cliente envia sempre a lista completa; merge preservaria itens apagados no servidor).
  * Fase 2: TODO suporte a device_id e conflitos.
  */
 export function saveSnapshot(userId, { transacoes = [], recorrentes = [], config = {} }) {
   const db = getDb();
   const existing = getSnapshot(userId);
   const mergedTransacoes = mergeByUpdatedAt(existing.transacoes, transacoes);
-  const mergedRecorrentes = mergeByUpdatedAt(existing.recorrentes, recorrentes);
+  const mergedRecorrentes = Array.isArray(recorrentes) ? recorrentes : existing.recorrentes;
   const mergedConfig = { ...existing.config };
   if (config.categorias?.length) mergedConfig.categorias = config.categorias;
   if (config.contas?.length) mergedConfig.contas = config.contas;

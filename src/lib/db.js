@@ -82,8 +82,11 @@ export async function putRecorrencia(r) {
 }
 
 export async function putRecorrentes(arr) {
+  const items = Array.isArray(arr) ? arr : [];
   const updatedAt = new Date().toISOString();
-  await db.recorrentes.bulkPut(arr.map((r) => ({ ...r, updatedAt })));
+  const toPut = items.map((r) => ({ ...r, updatedAt }));
+  await db.recorrentes.clear();
+  if (toPut.length > 0) await db.recorrentes.bulkPut(toPut);
   return updatedAt;
 }
 

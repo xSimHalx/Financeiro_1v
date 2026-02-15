@@ -13,13 +13,25 @@ const DEFAULT_STATUS_LANCAMENTO = [
 ];
 const MIGRADO_KEY = 'VertexAds_migradoCentavos';
 
-/** Migra valores de reais para centavos (uma vez). Dados existentes = reais. */
+/** Valores > 100.000 provavelmente já estão em centavos (ex: 130000 = R$ 1.300). */
+function pareceCentavos(val) {
+  const n = Number(val);
+  return !Number.isNaN(n) && n > 100000;
+}
+
+/** Migra valores de reais para centavos (uma vez). Evita reconverter dados já em centavos. */
 function migrarParaCentavos(txs, recs, tauriInvoke) {
   if (typeof localStorage !== 'undefined' && localStorage.getItem(MIGRADO_KEY)) {
     return { txs, recs };
   }
-  const txsMig = txs.map((t) => ({ ...t, value: t.value != null ? reaisParaCentavos(t.value) : 0 }));
-  const recsMig = recs.map((r) => ({ ...r, valor: r.valor != null ? reaisParaCentavos(r.valor) : 0 }));
+  const txsMig = txs.map((t) => ({
+    ...t,
+    value: t.value != null ? (pareceCentavos(t.value) ? Number(t.value) : reaisParaCentavos(t.value)) : 0
+  }));
+  const recsMig = recs.map((r) => ({
+    ...r,
+    valor: r.valor != null ? (pareceCentavos(r.valor) ? Number(r.valor) : reaisParaCentavos(r.valor)) : 0
+  }));
   localStorage.setItem(MIGRADO_KEY, '1');
   if (tauriInvoke && txsMig.length > 0) tauriInvoke('put_transacoes', txsMig).catch(() => {});
   if (tauriInvoke && recsMig.length > 0) tauriInvoke('put_recorrentes', recsMig).catch(() => {});
@@ -61,6 +73,7 @@ export function ProviderDados({ children }) {
   const [syncError, setSyncError] = useState(null);
   const hydrated = useRef(false);
   const lastPutTransacoesRef = useRef(Promise.resolve());
+  const unregisterPushRef = useRef(null);
 
   const persistTransacoes = useCallback((next) => {
     if (!Array.isArray(next)) return;
@@ -182,7 +195,7 @@ export function ProviderDados({ children }) {
         hydrated.current = true;
         setLastSyncedAt(config.lastSyncedAt);
         if (auth.getToken() && pullOk) setSyncStatus('synced');
-        registerPushOnClose({
+        unregisterPushRef.current = registerPushOnClose({
           onPushStart: () => setSyncStatus('syncing'),
           onPushEnd: () => {
             setSyncStatus('synced');
@@ -218,7 +231,10 @@ export function ProviderDados({ children }) {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      unregisterPushRef.current?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -256,7 +272,6 @@ export function ProviderDados({ children }) {
       if (invoke) invoke('put_recorrentes', recorrentes || []).catch(() => {});
       return;
     }
-    if (recorrentes.length === 0) return;
     persistRecorrentes(recorrentes);
   }, [recorrentes, persistRecorrentes]);
 

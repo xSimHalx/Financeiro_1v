@@ -80,12 +80,11 @@ async function applySyncData(data, now) {
       dexie.recorrentes.toArray()
     ]);
     const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
-    const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+    // Recorrentes: usa a lista do servidor como fonte de verdade (substitui local).
+    // Merge preservaria itens deletados localmente que o servidor já não tem.
+    const mergedRecs = Array.isArray(incomingRecs) ? incomingRecs : localRecs;
 
-    // SALVAGUARDA: Se tínhamos dados locais e o merge resultou em zero, algo deu errado.
-    // Aborta para não perder dados (ex: servidor retornou vazio indevidamente).
     if (localTxs.length > 0 && mergedTxs.length === 0) throw new Error('Sync Aborted: Potential data loss detected in Transacoes.');
-    if (localRecs.length > 0 && mergedRecs.length === 0) throw new Error('Sync Aborted: Potential data loss detected in Recorrentes.');
 
     await dexie.transacoes.clear();
     if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
@@ -117,11 +116,10 @@ async function applySyncDataIncremental(incoming, now) {
       dexie.recorrentes.toArray()
     ]);
     const mergedTxs = mergeByUpdatedAt(localTxs, incomingTxs);
-    const mergedRecs = mergeByUpdatedAt(localRecs, incomingRecs);
+    // Recorrentes: servidor sempre envia a lista completa (incremental não filtra recorrentes)
+    const mergedRecs = Array.isArray(incomingRecs) ? incomingRecs : localRecs;
 
-    // SALVAGUARDA INCREMENTAL
     if (localTxs.length > 0 && mergedTxs.length === 0) throw new Error('Sync Incr Aborted: Potential data loss in Transacoes.');
-    if (localRecs.length > 0 && mergedRecs.length === 0) throw new Error('Sync Incr Aborted: Potential data loss in Recorrentes.');
 
     await dexie.transacoes.clear();
     if (mergedTxs.length > 0) await dexie.transacoes.bulkPut(mergedTxs);
@@ -187,20 +185,40 @@ export async function pullFromCloud() {
   return { ok: true };
 }
 
+let _syncPushEmAndamento = false;
+let _ultimoSyncPushEmMs = 0;
+const SYNC_DEBOUNCE_MS = 2500;
+
 /**
  * Push para nuvem: POST /sync. Sem token retorna skipped; 4xx/5xx retorna ok:false sem alterar lastSyncedAt.
+ * Anti-duplicação: evita 2+ chamadas simultâneas ou em sequência rápida (ex: pagehide + visibilitychange).
  */
 export async function pushToCloud() {
   if (isTauri() || !API_URL) return { ok: true, skipped: true };
   const token = getToken();
   if (!token) return { ok: true, skipped: true };
-  const config = await db.getConfig();
-  const transacoes = await db.getAllTransacoes(true);
-  const recorrentes = await db.getAllRecorrentes();
-  const body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
-  const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
+  const agora = Date.now();
+  if (_syncPushEmAndamento) {
+    console.log('[Sync] push ignorado: já em andamento');
+    return { ok: true, skipped: true };
+  }
+  if (agora - _ultimoSyncPushEmMs < SYNC_DEBOUNCE_MS) {
+    console.log('[Sync] push ignorado: debounce (evita duplicata)');
+    return { ok: true, skipped: true };
+  }
+
+  _syncPushEmAndamento = true;
+  _ultimoSyncPushEmMs = agora;
+
+  let body = null;
   try {
-    console.log(`[Sync] Enviando ${transacoes.length} transações para a nuvem...`);
+    const config = await db.getConfig();
+    const transacoes = await db.getAllTransacoes(true);
+    const recorrentes = await db.getAllRecorrentes();
+    body = { transacoes, recorrentes, config: { categorias: config.categorias, contas: config.contas, contasInvestimento: config.contasInvestimento, clientes: config.clientes, statusLancamento: config.statusLancamento } };
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+    console.log('[Sync] iniciando push. pendentes:', transacoes.length, 'transações,', recorrentes?.length || 0, 'recorrências');
     const res = await fetch(`${API_URL}/sync`, { method: 'POST', headers, body: JSON.stringify(body), cache: 'no-store', keepalive: true });
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) console.warn('[Sync] push 401/403 – token inválido.');
@@ -210,12 +228,14 @@ export async function pushToCloud() {
     }
     await db.setConfig({ lastSyncedAt: new Date().toISOString() });
     await db.clearPendingPush();
-    console.log('[Sync] Push concluído com sucesso.');
+    console.log('[Sync] push concluído com sucesso');
     return { ok: true };
   } catch (e) {
-    console.error('[Sync] Erro de rede ao enviar:', e);
-    await db.setPendingPush(body);
+    console.error('[Sync] erro de rede ao enviar:', e);
+    if (body) await db.setPendingPush(body).catch(() => {});
     throw e;
+  } finally {
+    _syncPushEmAndamento = false;
   }
 }
 
@@ -239,10 +259,12 @@ const SYNC_ON_VISIBLE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
 
 /**
  * Registra push ao fechar a aba/app (pagehide) e pull ao voltar (visibility visible).
+ * Usa apenas visibilitychange para evitar duplicata: pagehide e visibilitychange(hidden) disparam juntos.
  * @param {{ onPushStart?: () => void, onPushEnd?: () => void, onPushError?: (e: Error) => void, onVisibilityVisible?: () => Promise<void> }} callbacks
+ * @returns {() => void} Cleanup para remover listeners
  */
 export function registerPushOnClose(callbacks = {}) {
-  if (isTauri()) return;
+  if (isTauri()) return () => {};
   const { onPushStart, onPushEnd, onPushError, onVisibilityVisible } = callbacks;
   const onClose = () => {
     if (!API_URL) return;
@@ -257,21 +279,23 @@ export function registerPushOnClose(callbacks = {}) {
         onPushEnd?.();
       })
       .catch((e) => {
-        console.warn('Sync push on close failed', e);
+        console.warn('[Sync] push on close failed', e);
         onPushError?.(e);
       });
   };
-  const onVisible = async () => {
-    if (document.visibilityState !== 'visible' || !onVisibilityVisible) return;
-    const config = await db.getConfig();
-    const last = config.lastSyncedAt ? new Date(config.lastSyncedAt).getTime() : 0;
-    if (Date.now() - last > SYNC_ON_VISIBLE_INTERVAL_MS) {
-      onVisibilityVisible();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') onClose();
+    else if (document.visibilityState === 'visible' && onVisibilityVisible) {
+      db.getConfig().then((config) => {
+        const last = config.lastSyncedAt ? new Date(config.lastSyncedAt).getTime() : 0;
+        if (Date.now() - last > SYNC_ON_VISIBLE_INTERVAL_MS) onVisibilityVisible();
+      });
     }
   };
   window.addEventListener('pagehide', onClose);
-  window.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') onClose();
-    else onVisible();
-  });
+  window.addEventListener('visibilitychange', onVisibilityChange);
+  return () => {
+    window.removeEventListener('pagehide', onClose);
+    window.removeEventListener('visibilitychange', onVisibilityChange);
+  };
 }
