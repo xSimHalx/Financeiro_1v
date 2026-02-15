@@ -74,6 +74,7 @@ export function ProviderDados({ children }) {
   const hydrated = useRef(false);
   const lastPutTransacoesRef = useRef(Promise.resolve());
   const unregisterPushRef = useRef(null);
+  const stateForPushRef = useRef({ transacoes: [], recorrentes: [] });
 
   const persistTransacoes = useCallback((next) => {
     if (!Array.isArray(next)) return;
@@ -114,6 +115,16 @@ export function ProviderDados({ children }) {
           .catch((e) => { console.warn('[Sync] push falhou:', e?.message || e); setSyncStatus('error'); setSyncError(e?.message || 'Falha ao enviar'); });
       })
       .catch((e) => console.warn('Persist recorrentes failed', e));
+  }, []);
+
+  useEffect(() => {
+    stateForPushRef.current = { transacoes, recorrentes };
+  }, [transacoes, recorrentes]);
+
+  const flushBeforePush = useCallback(async () => {
+    const { transacoes: txs, recorrentes: recs } = stateForPushRef.current;
+    if (Array.isArray(txs)) await db.putTransacoes(txs);
+    if (Array.isArray(recs)) await db.putRecorrentes(recs);
   }, []);
 
   useEffect(() => {
@@ -196,6 +207,7 @@ export function ProviderDados({ children }) {
         setLastSyncedAt(config.lastSyncedAt);
         if (auth.getToken() && pullOk) setSyncStatus('synced');
         unregisterPushRef.current = registerPushOnClose({
+          flushBeforePush,
           onPushStart: () => setSyncStatus('syncing'),
           onPushEnd: () => {
             setSyncStatus('synced');

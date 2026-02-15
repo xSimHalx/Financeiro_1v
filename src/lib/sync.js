@@ -144,9 +144,12 @@ export async function pullFromCloud() {
   const config = await db.getConfig();
   const pending = await db.getPendingPush();
   if (pending && token) {
+    // Usar recorrentes atuais do IndexedDB (evita reenviar lista antiga com itens já deletados).
+    const recorrentesAtuais = await db.getAllRecorrentes();
+    const bodyEnviar = { ...pending, recorrentes: recorrentesAtuais };
     const pushHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     console.log('[Sync] Tentando enviar push pendente...');
-    const pushRes = await fetch(`${API_URL}/sync`, { method: 'POST', headers: pushHeaders, body: JSON.stringify(pending), cache: 'no-store' });
+    const pushRes = await fetch(`${API_URL}/sync`, { method: 'POST', headers: pushHeaders, body: JSON.stringify(bodyEnviar), cache: 'no-store' });
     if (!pushRes.ok) {
       if (pushRes.status === 401 || pushRes.status === 403) {
         console.warn('[Sync] push pendente 401/403 – dados locais preservados.');
@@ -260,16 +263,21 @@ const SYNC_ON_VISIBLE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
 /**
  * Registra push ao fechar a aba/app (pagehide) e pull ao voltar (visibility visible).
  * Usa apenas visibilitychange para evitar duplicata: pagehide e visibilitychange(hidden) disparam juntos.
- * @param {{ onPushStart?: () => void, onPushEnd?: () => void, onPushError?: (e: Error) => void, onVisibilityVisible?: () => Promise<void> }} callbacks
+ * flushBeforePush: garante que IndexedDB tenha estado atual antes do push (evita race com persistência).
+ * @param {{ onPushStart?: () => void, onPushEnd?: () => void, onPushError?: (e: Error) => void, onVisibilityVisible?: () => Promise<void>, flushBeforePush?: () => Promise<void> }} callbacks
  * @returns {() => void} Cleanup para remover listeners
  */
 export function registerPushOnClose(callbacks = {}) {
   if (isTauri()) return () => {};
-  const { onPushStart, onPushEnd, onPushError, onVisibilityVisible } = callbacks;
+  const { onPushStart, onPushEnd, onPushError, onVisibilityVisible, flushBeforePush } = callbacks;
   const onClose = () => {
     if (!API_URL) return;
     onPushStart?.();
-    pushToCloud()
+    const run = async () => {
+      if (flushBeforePush) await flushBeforePush();
+      return pushToCloud();
+    };
+    run()
       .then((r) => {
         if (r?.ok === false) {
           console.warn('[Sync] push on close failed:', r.status, r.error);
