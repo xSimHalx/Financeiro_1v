@@ -1,3 +1,4 @@
+
 import { getDb } from '../db.js';
 
 const DEFAULT_CONFIG = {
